@@ -37,6 +37,35 @@ test('validation issues prevent execution and preserve issue details for direct 
   expect(handler).not.toHaveBeenCalled()
 })
 
+test.each([
+  ['circular references', () => {
+    const details: { self?: unknown } = {}
+    details.self = details
+    return details
+  }],
+  ['BigInt values', () => 1n],
+  ['throwing toJSON methods', () => ({ toJSON() { throw new Error('Serialization failed') } })],
+])('non-serializable validation issues preserve messages and original details: %s', async (_, createDetails) => {
+  const details = createDetails()
+  const issues = [
+    { message: 'Invalid input', details },
+    { message: 'Another validation failure', path: ['value'] },
+  ]
+  const input = z.unknown()
+  vi.spyOn(input['~standard'], 'validate').mockReturnValue({ issues })
+  const handler = vi.fn()
+  const run = createIpcInvoke('invalid-details').inputValidator(input).handler(handler)
+  const error = await run(undefined).catch((reason: unknown) => reason)
+  expect(error).toBeInstanceOf(IpcValidationError)
+  expect((error as IpcValidationError).name).toBe('IpcValidationError')
+  expect((error as IpcValidationError).issues).toBe(issues)
+  expect((error as IpcValidationError).message).toBe(JSON.stringify([
+    { message: 'Invalid input' },
+    { message: 'Another validation failure' },
+  ], null, 2))
+  expect(handler).not.toHaveBeenCalled()
+})
+
 test('validator and handler failures reject the returned Promise; undefined output is valid', async () => {
   const error = new Error('Failure')
   for (const fail of [() => { throw error }, async () => { throw error }]) {

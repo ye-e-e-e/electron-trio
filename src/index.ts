@@ -14,7 +14,13 @@ export type IpcInvokeFn<Schema extends StandardSchemaV1 | undefined, Result> = (
 /** Available to direct callers; Electron transports only the error message. */
 export class IpcValidationError extends Error {
   constructor(readonly issues: ReadonlyArray<StandardSchemaV1.Issue>) {
-    super(JSON.stringify(issues, null, 2))
+    let message: string
+    try {
+      message = JSON.stringify(issues, null, 2)
+    } catch {
+      message = JSON.stringify(issues.map(({ message }) => ({ message })), null, 2)
+    }
+    super(message)
     this.name = 'IpcValidationError'
   }
 }
