@@ -27,23 +27,23 @@ import electron from "vite-plugin-electron/simple"
 import { ipcInvoke } from "electron-ipc-invoke/vite"
 
 export default defineConfig(() => {
-	const ipc = ipcInvoke()
+    const ipc = ipcInvoke()
 
-	return {
-		plugins: [
-			ipc.renderer(),
-			electron({
-				main: {
-					entry: "electron/main.ts",
-					vite: { plugins: [ipc.main()] },
-				},
-				preload: {
-					input: "electron/preload.ts",
-					vite: { plugins: [ipc.preload()] },
-				},
-			}),
-		],
-	}
+    return {
+        plugins: [
+            ipc.renderer(),
+            electron({
+                main: {
+                    entry: "electron/main.ts",
+                    vite: { plugins: [ipc.main()] },
+                },
+                preload: {
+                    input: "electron/preload.ts",
+                    vite: { plugins: [ipc.preload()] },
+                },
+            }),
+        ],
+    }
 })
 ```
 
@@ -56,12 +56,12 @@ import { z } from "zod"
 import { createIpcInvoke } from "electron-ipc-invoke"
 
 export const getVersion = createIpcInvoke("channel")
-	.inputValidator(z.object({ prefix: z.string() }))
-	.handler(({ event, data }) => {
-		// event: IpcMainInvokeEvent | undefined
-		// data: { prefix: string }
-		return data.prefix + app.getVersion()
-	})
+    .inputValidator(z.object({ prefix: z.string() }))
+    .handler(({ event, data }) => {
+        // event: IpcMainInvokeEvent | undefined
+        // data: { prefix: string }
+        return data.prefix + app.getVersion()
+    })
 ```
 
 ### 3. Call the function from the renderer
@@ -86,7 +86,7 @@ export const getVersion = async (input) => globalThis.__ipc["channel"](input)
 
 // preload: inject generated bridge code into the preload entry.
 contextBridge.exposeInMainWorld("__ipc", {
-	["channel"]: (input) => ipcRenderer.invoke("channel", input),
+    ["channel"]: (input) => ipcRenderer.invoke("channel", input),
 })
 
 // main: inject generated registration code into the main entry.
