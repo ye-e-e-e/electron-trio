@@ -13,6 +13,7 @@ export function rendererPlugin(session: BuildSession): Plugin {
   return {
     name: 'electron-ipc-invoke:renderer',
     enforce: 'pre',
+    applyToEnvironment: ({ name }) => name === 'client',
     configResolved(config) { session.configure(config, 'renderer') },
     options: {
       order: 'post',
