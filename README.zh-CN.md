@@ -12,7 +12,10 @@ npm install electron-ipc-invoke
 
 ## 示例
 
-在 [`example/`](./example) 中提供了一个使用 Vite 8.2.0, Electron 44.0.0, [vite-plugin-electron](https://github.com/electron-vite/vite-plugin-electron), Zod schema 以及 React 的最小项目。
+[`examples/`](./examples) 中提供了两个使用 Vite、Electron、Zod schema 和 React 的最小项目：
+
+- [`vite-plugin-electron`](./examples/vite-plugin-electron)：使用 `vite-plugin-electron/simple`，分别构建 main 和 preload。
+- [`vite-plugin-electron-multi-env`](./examples/vite-plugin-electron-multi-env)：使用 `vite-plugin-electron/multi-env` 导出的 `electronSimple`，通过 Vite environments 构建。
 
 ## 快速开始
 

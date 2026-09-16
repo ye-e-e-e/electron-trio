@@ -12,7 +12,10 @@ npm install electron-ipc-invoke
 
 ## Example
 
-The [`example/`](./example) directory contains a minimal project using Vite 8.2.0, Electron 44.0.0, [vite-plugin-electron](https://github.com/electron-vite/vite-plugin-electron), Zod schemas, and React.
+The [`examples/`](./examples) directory contains two minimal projects using Vite, Electron, Zod schemas, and React:
+
+- [`vite-plugin-electron`](./examples/vite-plugin-electron): uses `vite-plugin-electron/simple` with separate main/preload builds.
+- [`vite-plugin-electron-multi-env`](./examples/vite-plugin-electron-multi-env): uses `electronSimple` from `vite-plugin-electron/multi-env` with Vite environments.
 
 ## Quick Start
 
