@@ -23,8 +23,9 @@ test('target plugins regenerate watched outputs for additions, renames, deletion
   await fs.writeFile(path.join(root, 'main.ts'), `export const started = true`)
   await fs.writeFile(path.join(root, 'preload.ts'), ``)
 
-  const ipc = ipcInvoke()
-  const server = await createServer({ root, configFile: false, logLevel: 'silent', plugins: [ipc.renderer()], resolve: { alias: sourceAliases }, server: { middlewareMode: true, ws: false }, optimizeDeps: { noDiscovery: true, include: [] } })
+  const [rendererPlugin, mainPlugin, preloadPlugin] = ipcInvoke()
+  const plugins = { renderer: rendererPlugin, main: mainPlugin, preload: preloadPlugin }
+  const server = await createServer({ root, configFile: false, logLevel: 'silent', plugins: [rendererPlugin], resolve: { alias: sourceAliases }, server: { middlewareMode: true, ws: false }, optimizeDeps: { noDiscovery: true, include: [] } })
   t.onTestFinished(() => server.close())
   const outputs = { main: '', preload: '' }
   const errors: Error[] = []
@@ -36,7 +37,7 @@ test('target plugins regenerate watched outputs for additions, renames, deletion
       root, configFile: false, logLevel: 'silent',
       resolve: { alias: sourceAliases },
       plugins: [
-        ipc[target](),
+        plugins[target],
         {
           name: 'test-capture-output',
           async writeBundle() {

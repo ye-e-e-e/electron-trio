@@ -54,7 +54,7 @@ function request(server: ViteDevServer, url: string) {
 test('development proxy requests preserve every channel through Vite URL decoding', async (t) => {
   const root = await fixture(t)
   const server = await createServer({
-    root, configFile: false, logLevel: 'silent', plugins: [ipcInvoke({ bridgeName }).renderer()],
+    root, configFile: false, logLevel: 'silent', plugins: [ipcInvoke({ bridgeName })[0]],
     resolve: { alias: sourceAliases },
     server: { middlewareMode: true, ws: false }, optimizeDeps: { noDiscovery: true, include: [] },
   })
@@ -79,9 +79,9 @@ test('production selection and preload forwarding preserve special channels', as
   const root = await fixture(t, productionChannels)
   await fs.writeFile(path.join(root, 'renderer.ts'), `export * from './src/ipc/channels.ipc'`)
   await fs.writeFile(path.join(root, 'preload.ts'), '')
-  const ipc = ipcInvoke({ bridgeName })
-  await bundle(root, ipc.renderer(), 'renderer.ts', cjs(root, 'renderer.ts'))
-  const output = await bundle(root, ipc.preload(), 'preload.ts', cjs(root, 'preload.ts'))
+  const [rendererPlugin, , preloadPlugin] = ipcInvoke({ bridgeName })
+  await bundle(root, rendererPlugin, 'renderer.ts', cjs(root, 'renderer.ts'))
+  const output = await bundle(root, preloadPlugin, 'preload.ts', cjs(root, 'preload.ts'))
   type Bridge = Record<string, (input: unknown) => unknown>
   let bridge: Bridge = {}
   vm.runInNewContext(entryCode(output), {

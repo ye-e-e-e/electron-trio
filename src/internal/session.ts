@@ -35,7 +35,7 @@ export class BuildSession {
 
   handlers(snapshot: Snapshot) {
     if (this.command === 'serve') return [...snapshot.channels.values()]
-    if (!this.channels) throw new Error('Build renderer with ipc.renderer() before main/preload using the same ipcInvoke instance')
+    if (!this.channels) throw new Error('Build renderer before main/preload using plugins from the same ipcInvoke() call')
     return [...this.channels].sort().map((channel) => {
       const handler = snapshot.channels.get(channel)
       if (!handler) throw new Error(`Renderer references missing IPC channel ${JSON.stringify(channel)}; rebuild renderer before main/preload`)

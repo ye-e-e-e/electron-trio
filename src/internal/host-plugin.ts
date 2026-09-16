@@ -14,7 +14,7 @@ export function hostPlugin(session: BuildSession, target: 'main' | 'preload'): P
     enforce: 'pre',
     configResolved(config) { session.configure(config, target) },
     async buildStart(input) {
-      if (!session.command) this.error('Initialize ipc.renderer() before starting main/preload builds')
+      if (!session.command) this.error('Initialize the renderer plugin before starting main/preload builds')
       entries.clear()
       generated.clear()
       const entry = input.input

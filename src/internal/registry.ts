@@ -87,7 +87,7 @@ export class DefinitionRegistry {
     const parsed = parseHandlers(code, file)
     if (parsed.length !== source.handlers.length || parsed.some((handler, i) =>
       handler.name !== source.handlers[i].name || handler.channel !== source.handlers[i].channel)) {
-      throw new Error(`A preceding plugin changed IPC exports: ${file}. Place ipc.renderer() before that plugin.`)
+      throw new Error(`A preceding plugin changed IPC exports: ${file}. Place the renderer plugin before that plugin.`)
     }
     return parsed
   }

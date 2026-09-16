@@ -16,7 +16,7 @@ test('Vite hotUpdate validates unimported definitions and refreshes cached proxi
   const hidden = path.join(directory, 'hidden.ipc.ts')
   await fs.writeFile(active, definition('active'))
   const server = await createServer({
-    root, configFile: false, logLevel: 'silent', plugins: [ipcInvoke().renderer()],
+    root, configFile: false, logLevel: 'silent', plugins: [ipcInvoke()[0]],
     resolve: { alias: sourceAliases },
     server: { middlewareMode: true, ws: false }, optimizeDeps: { noDiscovery: true, include: [] },
   })

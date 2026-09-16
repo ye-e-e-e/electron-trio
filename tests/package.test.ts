@@ -12,9 +12,9 @@ test('CommonJS main loads the published runtime through package exports', async 
     [valueModule]: ipcSource(`export const run = createIpcInvoke('external').inputValidator(z.string().transform(Number)).handler(({ data, event }) => ({ data, hasEvent: !!event }))`),
     'main.ts': `export { run } from './src/ipc/value.ipc'`,
   })
-  const ipc = ipcInvoke()
-  await bundle(root, ipc.renderer(), 'renderer.ts')
-  const output = await bundle(root, ipc.main(), 'main.ts', {
+  const [rendererPlugin, mainPlugin] = ipcInvoke()
+  await bundle(root, rendererPlugin, 'renderer.ts')
+  const output = await bundle(root, mainPlugin, 'main.ts', {
     ...cjs(root, 'main.ts'), rolldownOptions: { external: ['electron', 'zod', 'electron-ipc-invoke'] },
   })
   const code = entryCode(output)

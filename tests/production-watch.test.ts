@@ -29,7 +29,8 @@ test(`production watchers follow renderer selection and recover with ${outputMod
   await fs.writeFile(rendererEntry, `export { first } from './src/ipc/value.ipc'`)
   for (const target of ['main', 'preload'] as const) await fs.writeFile(path.join(root, `${target}.ts`), '')
 
-  const ipc = ipcInvoke()
+  const [rendererPlugin, mainPlugin, preloadPlugin] = ipcInvoke()
+  const plugins = { renderer: rendererPlugin, main: mainPlugin, preload: preloadPlugin }
   const outputs: { renderer?: string; main?: string[]; preload?: string[] } = {}
   const channelHistory: Record<'main' | 'preload', string[][]> = { main: [], preload: [] }
   const revisions = { renderer: 0, main: 0, preload: 0 }
@@ -44,7 +45,7 @@ test(`production watchers follow renderer selection and recover with ${outputMod
     const watcher = await build({
       root, configFile: false, logLevel: 'silent',
       resolve: { alias: sourceAliases },
-      plugins: [ipc[target](), {
+      plugins: [plugins[target], {
         name: 'capture-production-watch-output',
         async generateBundle(options) {
           if (target === 'renderer' && rendererGate) {

@@ -28,10 +28,10 @@ test('generated renderer, preload and main preserve validation, results and per-
     'src/ipc/private.ts': `export const secret = 'MAIN_IMPLEMENTATION_SENTINEL'`,
     'main.ts': `export { read, noInput } from './src/ipc/value.ipc'`,
   })
-  const ipc = ipcInvoke({ bridgeName: 'desktop' })
-  const renderer = await bundle(root, ipc.renderer(), 'renderer.ts', cjs(root, 'renderer.ts'))
-  const preload = await bundle(root, ipc.preload(), 'preload.ts', cjs(root, 'preload.ts'))
-  const main = await bundle(root, ipc.main(), 'main.ts', cjs(root, 'main.ts'))
+  const [rendererPlugin, mainPlugin, preloadPlugin] = ipcInvoke({ bridgeName: 'desktop' })
+  const renderer = await bundle(root, rendererPlugin, 'renderer.ts', cjs(root, 'renderer.ts'))
+  const preload = await bundle(root, preloadPlugin, 'preload.ts', cjs(root, 'preload.ts'))
+  const main = await bundle(root, mainPlugin, 'main.ts', cjs(root, 'main.ts'))
   for (const output of [renderer, preload]) {
     expect(outputText(output)).not.toMatch(/MAIN_IMPLEMENTATION_SENTINEL|Zod|~standard|validations|getVersion/)
   }
@@ -72,9 +72,9 @@ test('registration conflicts roll back new handlers without removing an existing
     export const first = createIpcInvoke('first').inputValidator(z.void()).handler(() => 1)
     export const second = createIpcInvoke('second').inputValidator(z.void()).handler(() => 2)
   `) })
-  const ipc = ipcInvoke()
-  await bundle(root, ipc.renderer(), 'renderer.ts')
-  const code = entryCode(await bundle(root, ipc.main(), 'main.ts', cjs(root, 'main.ts')))
+  const [rendererPlugin, mainPlugin] = ipcInvoke()
+  await bundle(root, rendererPlugin, 'renderer.ts')
+  const code = entryCode(await bundle(root, mainPlugin, 'main.ts', cjs(root, 'main.ts')))
   const { electron, handlers } = electronHarness()
   const foreign = () => 3
   handlers.set('second', foreign)
@@ -92,11 +92,12 @@ test('a symlink project root supports all three builds with the same IPC definit
   const linkedRoot = root + '-link'
   await fs.symlink(root, linkedRoot, 'dir')
   t.onTestFinished(() => fs.rm(linkedRoot, { force: true }))
-  const ipc = ipcInvoke()
-  await bundle(linkedRoot, ipc.renderer(), 'renderer.ts')
+  const [rendererPlugin, mainPlugin, preloadPlugin] = ipcInvoke()
+  const plugins = { main: mainPlugin, preload: preloadPlugin }
+  await bundle(linkedRoot, rendererPlugin, 'renderer.ts')
   for (const target of ['main', 'preload'] as const) {
     const entry = `${target}.ts`
-    const output = await bundle(linkedRoot, ipc[target](), entry, cjs(linkedRoot, entry))
+    const output = await bundle(linkedRoot, plugins[target], entry, cjs(linkedRoot, entry))
     expect(channels(entryCode(output))).toStrictEqual(['linked'])
   }
 })
@@ -115,71 +116,71 @@ test('production exposes retained channels across direct imports, barrels and la
     'renderer.ts': `import { used } from './barrel'; import { dead } from './src/ipc/value.ipc'; if (false) dead(); globalThis.api = { used, load: () => import('./lazy') }`,
     'index.html': '<script type="module" src="/renderer.ts"></script>',
   })
-  const ipc = ipcInvoke()
-  await expect(bundle(root, ipc.main(), 'main.ts')).rejects.toThrow(/renderer/i)
-  const renderer = await bundle(root, ipc.renderer(), 'renderer.ts', { lib: false, minify: true })
+  const [rendererPlugin, mainPlugin, preloadPlugin] = ipcInvoke()
+  await expect(bundle(root, mainPlugin, 'main.ts')).rejects.toThrow(/renderer/i)
+  const renderer = await bundle(root, rendererPlugin, 'renderer.ts', { lib: false, minify: true })
   expect(renderer.filter(({ type }) => type === 'chunk').length).toBeGreaterThan(1)
   expect(outputText(renderer)).not.toMatch(/PRIVATE_HELPER|~standard|Zod/)
-  const selected = async () => channels(entryCode(await bundle(root, ipc.preload(), 'preload.ts', cjs(root, 'preload.ts'))))
+  const selected = async () => channels(entryCode(await bundle(root, preloadPlugin, 'preload.ts', cjs(root, 'preload.ts'))))
   expect(await selected()).toStrictEqual(['lazy', 'used'])
-  expect(outputText(await bundle(root, ipc.main(), 'main.ts'))).toMatch(/PRIVATE_HELPER/)
+  expect(outputText(await bundle(root, mainPlugin, 'main.ts'))).toMatch(/PRIVATE_HELPER/)
   await fs.writeFile(path.join(root, 'renderer.ts'), `import * as api from './src/ipc/value.ipc'; export const call = key => api[key]()`)
-  await bundle(root, ipc.renderer(), 'renderer.ts')
+  await bundle(root, rendererPlugin, 'renderer.ts')
   expect(await selected()).toStrictEqual(['dead', 'lazy', 'used'])
   await fs.writeFile(path.join(root, 'renderer.ts'), '')
-  await bundle(root, ipc.renderer(), 'renderer.ts')
+  await bundle(root, rendererPlugin, 'renderer.ts')
   expect(await selected()).toStrictEqual([])
 })
 
 test('all definitions are validated and implementation imports cannot cross into preload or excluded renderer scope', async (t) => {
   const root = await fixture(t, { ...entries, [valueModule]: definition('run') })
   await fs.writeFile(path.join(root, 'unimported.ipc.ts'), definition('run'))
-  await expect(bundle(root, ipcInvoke().renderer(), 'renderer.ts')).rejects.toThrow(/Duplicate IPC channel.*value.ipc.ts|Duplicate IPC channel.*unimported.ipc.ts/)
+  await expect(bundle(root, ipcInvoke()[0], 'renderer.ts')).rejects.toThrow(/Duplicate IPC channel.*value.ipc.ts|Duplicate IPC channel.*unimported.ipc.ts/)
   await fs.writeFile(path.join(root, 'unimported.ipc.ts'), 'export const broken = ;')
-  await expect(bundle(root, ipcInvoke().renderer(), 'renderer.ts')).rejects.toThrow(/unimported.ipc.ts/)
+  await expect(bundle(root, ipcInvoke()[0], 'renderer.ts')).rejects.toThrow(/unimported.ipc.ts/)
   await fs.unlink(path.join(root, 'unimported.ipc.ts'))
-  await expect(bundle(root, ipcInvoke({ exclude: ['**/value.ipc.ts'] }).renderer(), 'renderer.ts')).rejects.toThrow(/outside include/)
-  const ipc = ipcInvoke()
-  await bundle(root, ipc.renderer(), 'renderer.ts')
+  await expect(bundle(root, ipcInvoke({ exclude: ['**/value.ipc.ts'] })[0], 'renderer.ts')).rejects.toThrow(/outside include/)
+  const [rendererPlugin, , preloadPlugin] = ipcInvoke()
+  await bundle(root, rendererPlugin, 'renderer.ts')
   await fs.writeFile(path.join(root, 'preload.ts'), `import './src/ipc/value.ipc'`)
-  await expect(bundle(root, ipc.preload(), 'preload.ts')).rejects.toThrow(/preload/)
+  await expect(bundle(root, preloadPlugin, 'preload.ts')).rejects.toThrow(/preload/)
 })
 
 test('failed renderer outputs do not provide an initial channel selection', async (t) => {
   const root = await fixture(t, { ...entries, [valueModule]: definition('run') })
   for (const phase of ['generateBundle', 'writeBundle']) {
     for (const location of ['input', 'output']) {
-      const ipc = ipcInvoke()
+      const [rendererPlugin, , preloadPlugin] = ipcInvoke()
       const failure = { name: 'failure', [phase]: { order: 'post', async handler() { throw new Error('output failed') } } }
-      await expect(bundle(root, [ipc.renderer(), ...(location === 'input' ? [failure] : [])], 'renderer.ts', {
+      await expect(bundle(root, [rendererPlugin, ...(location === 'input' ? [failure] : [])], 'renderer.ts', {
         write: phase === 'writeBundle', outDir: 'out-renderer',
         rolldownOptions: { output: { plugins: location === 'output' ? [failure] : [] } },
       })).rejects.toThrow(/output failed/)
-      await expect(bundle(root, ipc.preload(), 'preload.ts')).rejects.toThrow(/renderer/i)
-      await bundle(root, ipc.renderer(), 'renderer.ts')
-      expect(channels(entryCode(await bundle(root, ipc.preload(), 'preload.ts', cjs(root, 'preload.ts'))))).toStrictEqual(['run'])
+      await expect(bundle(root, preloadPlugin, 'preload.ts')).rejects.toThrow(/renderer/i)
+      await bundle(root, rendererPlugin, 'renderer.ts')
+      expect(channels(entryCode(await bundle(root, preloadPlugin, 'preload.ts', cjs(root, 'preload.ts'))))).toStrictEqual(['run'])
     }
   }
 })
 
 test('all renderer outputs must finish before dependent builds can use their channels', async (t) => {
   const root = await fixture(t, { ...entries, [valueModule]: definition('run') })
-  const ipc = ipcInvoke()
-  await expect(bundle(root, ipc.renderer(), 'renderer.ts', {
+  const [rendererPlugin, , preloadPlugin] = ipcInvoke()
+  await expect(bundle(root, rendererPlugin, 'renderer.ts', {
     rolldownOptions: { output: [
       { format: 'es' }, { format: 'cjs', plugins: [{ name: 'failure', generateBundle() { throw new Error('last output failed') } }] },
     ] },
   })).rejects.toThrow(/last output failed/)
-  await expect(bundle(root, ipc.preload(), 'preload.ts')).rejects.toThrow(/renderer/i)
-  await bundle(root, ipc.renderer(), 'renderer.ts', { lib: { entry: path.join(root, 'renderer.ts'), formats: ['es', 'cjs'] } })
-  expect(channels(entryCode(await bundle(root, ipc.preload(), 'preload.ts', cjs(root, 'preload.ts'))))).toStrictEqual(['run'])
+  await expect(bundle(root, preloadPlugin, 'preload.ts')).rejects.toThrow(/renderer/i)
+  await bundle(root, rendererPlugin, 'renderer.ts', { lib: { entry: path.join(root, 'renderer.ts'), formats: ['es', 'cjs'] } })
+  expect(channels(entryCode(await bundle(root, preloadPlugin, 'preload.ts', cjs(root, 'preload.ts'))))).toStrictEqual(['run'])
 })
 
 test('preload entries execute independently without loading a shared local bridge chunk', async (t) => {
   const root = await fixture(t, { ...entries, [valueModule]: definition('run'), 'other-preload.ts': '' })
-  const ipc = ipcInvoke()
-  await bundle(root, ipc.renderer(), 'renderer.ts')
-  const output = await bundle(root, ipc.preload(), 'preload.ts', {
+  const [rendererPlugin, , preloadPlugin] = ipcInvoke()
+  await bundle(root, rendererPlugin, 'renderer.ts')
+  const output = await bundle(root, preloadPlugin, 'preload.ts', {
     lib: {
       entry: { first: path.join(root, 'preload.ts'), second: path.join(root, 'other-preload.ts') },
       formats: ['cjs'],
@@ -200,17 +201,17 @@ test('a preceding plugin cannot silently change the IPC contract', async (t) => 
     name: 'change-channel', enforce: 'pre',
     transform(code, id) { if (id.endsWith('.ipc.ts')) return code.replace('"run"', '"different"') },
   }
-  await expect(bundle(root, [changeChannel, ipcInvoke().renderer()], 'renderer.ts')).rejects.toThrow(/preceding plugin changed IPC exports/)
+  await expect(bundle(root, [changeChannel, ipcInvoke()[0]], 'renderer.ts')).rejects.toThrow(/preceding plugin changed IPC exports/)
 })
 
 test('entry initialization preserves shebangs and requires one main entry', async (t) => {
   const root = await fixture(t, { ...entries, [valueModule]: definition('run'), 'main.ts': '#!/usr/bin/env node\nexport const started = true', 'other-main.ts': '' })
-  const ipc = ipcInvoke()
-  await bundle(root, ipc.renderer(), 'renderer.ts')
-  const main = await bundle(root, ipc.main(), 'main.ts', cjs(root, 'main.ts'))
+  const [rendererPlugin, mainPlugin] = ipcInvoke()
+  await bundle(root, rendererPlugin, 'renderer.ts')
+  const main = await bundle(root, mainPlugin, 'main.ts', cjs(root, 'main.ts'))
   expect(entryCode(main)).toMatch(/^#!\/usr\/bin\/env node\n/)
   expect(channels(entryCode(main))).toStrictEqual(['run'])
-  await expect(bundle(root, ipc.main(), 'main.ts', {
+  await expect(bundle(root, mainPlugin, 'main.ts', {
     lib: { entry: [path.join(root, 'main.ts'), path.join(root, 'other-main.ts')], formats: ['es'] },
   })).rejects.toThrow(/requires one entry/)
 })

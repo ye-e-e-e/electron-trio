@@ -9,10 +9,6 @@ export interface IpcInvokeOptions {
   bridgeName?: string
 }
 
-export interface IpcInvokePlugins {
-  renderer(): Plugin
-  main(): Plugin
-  preload(): Plugin
-}
+export type IpcInvokePlugins = [renderer: Plugin, main: Plugin, preload: Plugin]
 
 export type Target = 'renderer' | 'main' | 'preload'

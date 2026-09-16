@@ -27,19 +27,19 @@ import electron from "vite-plugin-electron/simple"
 import { ipcInvoke } from "electron-ipc-invoke/vite"
 
 export default defineConfig(() => {
-    const ipc = ipcInvoke()
+    const [renderer, main, preload] = ipcInvoke()
 
     return {
         plugins: [
-            ipc.renderer(),
+            renderer,
             electron({
                 main: {
                     entry: "electron/main.ts",
-                    vite: { plugins: [ipc.main()] },
+                    vite: { plugins: [main] },
                 },
                 preload: {
                     input: "electron/preload.ts",
-                    vite: { plugins: [ipc.preload()] },
+                    vite: { plugins: [preload] },
                 },
             }),
         ],
@@ -168,9 +168,9 @@ When calling from main, the function validates input and executes `fn` directly,
 
 ### `ipcInvoke(options?)`
 
-Returns three plugin factories: `renderer()`, `main()`, and `preload()`. Add each plugin to its corresponding build.
+Returns a tuple of plugin instances in `[renderer, main, preload]` order. Add each plugin to its corresponding build.
 
-All three targets must use the same `ipcInvoke()` instance and share the same definition root. In development, initialize the renderer before starting the main/preload builds. In production, complete the renderer build before building main/preload so they can use the channels retained in the renderer output.
+All three targets must use plugins returned by the same `ipcInvoke()` call and share the same definition root. In development, initialize the renderer before starting the main/preload builds. In production, complete the renderer build before building main/preload so they can use the channels retained in the renderer output.
 
 | Option | Default | Description |
 | ------ | ------- | ----------- |

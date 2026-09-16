@@ -27,19 +27,19 @@ import electron from "vite-plugin-electron/simple"
 import { ipcInvoke } from "electron-ipc-invoke/vite"
 
 export default defineConfig(() => {
-    const ipc = ipcInvoke()
+    const [renderer, main, preload] = ipcInvoke()
 
     return {
         plugins: [
-            ipc.renderer(),
+            renderer,
             electron({
                 main: {
                     entry: "electron/main.ts",
-                    vite: { plugins: [ipc.main()] },
+                    vite: { plugins: [main] },
                 },
                 preload: {
                     input: "electron/preload.ts",
-                    vite: { plugins: [ipc.preload()] },
+                    vite: { plugins: [preload] },
                 },
             }),
         ],
@@ -166,8 +166,8 @@ flowchart TB
 
 ### `ipcInvoke(options?)`
 
-返回 `renderer()`、`main()`、`preload()` 三个插件工厂，分别接入对应构建。
-三个目标必须使用同一个 `ipcInvoke()` 实例并共享定义根目录。开发时应先初始化 renderer，再启动 main/preload 构建；生产构建时必须先完成 renderer 构建，再构建 main/preload，以便使用 renderer 产物中保留的 channel。
+返回按 `[renderer, main, preload]` 顺序排列的插件实例元组，分别接入对应构建。
+三个目标必须使用同一次 `ipcInvoke()` 调用返回的插件并共享定义根目录。开发时应先初始化 renderer，再启动 main/preload 构建；生产构建时必须先完成 renderer 构建，再构建 main/preload，以便使用 renderer 产物中保留的 channel。
 
 | 选项         | 默认值            | 说明                                                                                         |
 | ------------ | ----------------- | -------------------------------------------------------------------------------------------- |

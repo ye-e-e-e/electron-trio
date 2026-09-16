@@ -7,9 +7,9 @@ export type { IpcInvokeOptions, IpcInvokePlugins }
 
 export function ipcInvoke(options: IpcInvokeOptions = {}): IpcInvokePlugins {
   const session = new BuildSession(options)
-  return {
-    renderer: () => rendererPlugin(session),
-    main: () => hostPlugin(session, 'main'),
-    preload: () => hostPlugin(session, 'preload'),
-  }
+  return [
+    rendererPlugin(session),
+    hostPlugin(session, 'main'),
+    hostPlugin(session, 'preload'),
+  ]
 }

@@ -57,12 +57,13 @@ for (const mode of [
       await fs.mkdir(path.dirname(path.join(root, name)), { recursive: true })
       await fs.writeFile(path.join(root, name), code)
     }
-    const ipc = ipcInvoke()
+    const [rendererPlugin, mainPlugin, preloadPlugin] = ipcInvoke()
+    const plugins = { renderer: rendererPlugin, main: mainPlugin, preload: preloadPlugin }
     for (const target of ['renderer', 'main', 'preload'] as const) {
       const format = target === 'renderer' ? 'iife' : target === 'main' ? mode.mainFormat : 'cjs'
       const fileName = target === 'main' ? mode.mainFile : target === 'preload' ? 'preload.mjs' : 'renderer.js'
       await build({
-        root, configFile: false, logLevel: 'silent', plugins: [ipc[target]()],
+        root, configFile: false, logLevel: 'silent', plugins: [plugins[target]],
         resolve: { alias: sourceAliases },
         build: {
           outDir, emptyOutDir: false, minify: false,

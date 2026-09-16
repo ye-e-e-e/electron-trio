@@ -2,6 +2,18 @@ import { z } from 'zod'
 import type { IpcMainInvokeEvent } from 'electron'
 import { createIpcInvoke } from '#/index'
 import type { IpcInvokeFn } from '#/index'
+import type { Plugin } from 'vite'
+import { ipcInvoke } from '#/vite'
+import type { IpcInvokePlugins } from '#/vite'
+
+const ipcPlugins: IpcInvokePlugins = ipcInvoke()
+const pluginTuple: [Plugin, Plugin, Plugin] = ipcPlugins
+const [rendererPlugin, mainPlugin, preloadPlugin] = pluginTuple
+void [rendererPlugin, mainPlugin, preloadPlugin]
+// @ts-expect-error The tuple contains exactly three plugin instances.
+ipcPlugins[3]
+// @ts-expect-error Returned plugins are instances, not factories.
+ipcPlugins[0]()
 
 const sum = createIpcInvoke('sum')
   .inputValidator(z.object({ a: z.number(), b: z.number().default(1) }))
