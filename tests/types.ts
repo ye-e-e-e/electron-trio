@@ -6,13 +6,17 @@ import type { Plugin } from 'vite'
 import { ipcInvoke } from '#/vite'
 import type { IpcInvokePlugins } from '#/vite'
 
+type DevRuntime = Awaited<ReturnType<typeof import('#/dev').getRuntime>>
+const closeDevRuntime: (runtime: DevRuntime) => Promise<void> = runtime => runtime.close()
+void closeDevRuntime
+
 const ipcPlugins: IpcInvokePlugins = ipcInvoke()
-const pluginTuple: [Plugin, Plugin, Plugin] = ipcPlugins
+const pluginTuple: [Plugin[], Plugin[], Plugin[]] = ipcPlugins
 const [rendererPlugin, mainPlugin, preloadPlugin] = pluginTuple
 void [rendererPlugin, mainPlugin, preloadPlugin]
-// @ts-expect-error The tuple contains exactly three plugin instances.
+// @ts-expect-error The tuple contains exactly three target entries.
 ipcPlugins[3]
-// @ts-expect-error Returned plugins are instances, not factories.
+// @ts-expect-error The renderer entry is a plugin array, not a factory.
 ipcPlugins[0]()
 
 const sum = createIpcInvoke('sum')
@@ -71,3 +75,13 @@ converted(42)
 const empty = createIpcInvoke('empty').inputValidator(z.void()).handler(() => 1)
 const emptyResult: Promise<number> = empty()
 void emptyResult
+
+// @ts-expect-error Discovery is module-based; glob options were removed.
+ipcInvoke({ include: ['**/*.ts'] })
+// @ts-expect-error Encountered definitions cannot be excluded by a filename rule.
+ipcInvoke({ exclude: ['**/private/**'] })
+// @ts-expect-error Set the project root on Vite, not the IPC plugin.
+ipcInvoke({ root: '/application' })
+ipcInvoke({ bridgeName: '__desktop' })
+// @ts-expect-error A channel is required and is never generated automatically.
+createIpcInvoke()

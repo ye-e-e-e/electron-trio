@@ -1,12 +1,12 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
-  const isolatedSuite = mode === 'electron' ? 'tests/electron.test.ts'
-    : mode === 'package' ? 'tests/package.test.ts' : undefined
+  const isolatedSuite = mode === 'electron' ? 'tests/electron/**/*.test.ts'
+    : mode === 'package' ? 'tests/package/**/*.test.ts' : undefined
   return {
     test: {
-      include: isolatedSuite ? [isolatedSuite] : ['tests/*.test.ts'],
-      exclude: [...configDefaults.exclude, ...(isolatedSuite ? [] : ['tests/electron.test.ts', 'tests/package.test.ts'])],
+      include: isolatedSuite ? [isolatedSuite] : ['tests/**/*.test.ts'],
+      exclude: [...configDefaults.exclude, ...(isolatedSuite ? [] : ['tests/electron/**', 'tests/package/**'])],
       environment: 'node',
       pool: 'forks',
       restoreMocks: true,

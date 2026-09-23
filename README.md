@@ -4,6 +4,8 @@
 
 Define a function once and call it across processes with type safety. Built on Electron's native `invoke`/`handle` APIs, the Vite plugins generate handler registration and preload bridges, with parameter and return types inferred from the definition. No handwritten IPC boilerplate or type declarations are required. Inspired by TanStack Start's `createServerFn`.
 
+During development, changes to functions defined with `createIpcInvoke` take effect on the next call, without restarting the Electron main process.
+
 ## Installation
 
 ```bash
@@ -21,7 +23,7 @@ The [`examples/`](./examples) directory contains two minimal projects using Vite
 
 ### 1. Add the Vite plugins
 
-Add the corresponding plugin to each renderer, main, and preload build:
+Add the corresponding plugins to the renderer, main, and preload builds:
 
 ```ts
 // vite.config.ts
@@ -50,140 +52,108 @@ export default defineConfig(() => {
 })
 ```
 
-### 2. Define a function with `createIpcInvoke` in an `.ipc.ts` file
+### 2. Define a function with `createIpcInvoke`
 
 ```ts
-// electron/custom.ipc.ts
-import { app } from "electron"
+// electron/custom.ts
 import { z } from "zod"
 import { createIpcInvoke } from "electron-ipc-invoke"
 
-export const getVersion = createIpcInvoke("channel")
-    .inputValidator(z.object({ prefix: z.string() }))
+export const greet = createIpcInvoke("greet")
+    .inputValidator(z.object({ name: z.string() }))
     .handler(({ event, data }) => {
         // event: IpcMainInvokeEvent | undefined
-        // data: { prefix: string }
-        return data.prefix + app.getVersion()
+        // data: { name: string }
+        return `Hello, ${data.name}!`
     })
 ```
 
 ### 3. Call the function from the renderer
 
-```ts
+```tsx
 // src/App.tsx
-import { getVersion } from "../electron/custom.ipc"
+import { greet } from "../electron/custom"
 
-// The parameter type is inferred from the schema; the return type is inferred from the handler.
-const version = await getVersion({ prefix: "v" }) // string
+export default function App() {
+    async function sayHello() {
+        // The parameter type is inferred from the schema; the return type is inferred from the handler.
+        // greet: ({ name: string }) => Promise<string>
+        const message = await greet({ name: "Electron" })
+        console.log(message) // "Hello, Electron!"
+    }
+
+    return <button onClick={sayHello}>Say hello</button>
+}
 ```
 
 ## How It Works
 
-The build plugins process functions defined with `createIpcInvoke` differently for each build target. The core behavior is illustrated below:
+The plugins transform functions defined with `createIpcInvoke` for each environment and inject initialization code into main and preload entries through virtual modules. Dev proxies identify functions by module path and export name; the runtime loads updated modules on demand. Build generates handler registration and bridge code from the channel manifest after tree-shaking.
 
-```ts
-// renderer: replace the function with a call to the bridge on window.
-// Remove the rest of the implementation and its runtime dependencies.
-// Types come from the original TypeScript signature, so importing the same function provides both type inference and IPC calls.
-export const getVersion = async (input) => globalThis.__ipc["channel"](input)
+### Dev
 
-// preload: inject generated bridge code into the preload entry.
-contextBridge.exposeInMainWorld("__ipc", {
-    ["channel"]: (input) => ipcRenderer.invoke("channel", input),
-})
-
-// main: inject generated registration code into the main entry.
-// execute is the definition's internal entry point: it validates input, then runs the handler.
-ipcMain.handle("channel", (event, input) => execute(event, input))
-```
+`electron-ipc-invoke/dev` exports only `initRuntime` and `getRuntime`. The plugins initialize the shared instance in main, use it for local calls and renderer IPC dispatch, and close it with `(await getRuntime()).close()` on quit. Closing is idempotent; the closed instance remains cached and rejects further invocations. Application code does not need to manage this lifecycle.
 
 ```mermaid
----
-config:
-  layout: dagre
-  markdownAutoWrap: false
-  flowchart:
-    nodeSpacing: 36
-    rankSpacing: 40
-  themeVariables:
-    fontSize: 14px
----
-flowchart TB
-    subgraph Compile["Compile Time"]
-        A["Scan matching .ipc.ts files<br/>Index definitions"]
-        B["Replace Renderer implementations<br/>Generate call proxies"]
-        CB["tree-shaking"]
-        S["Select definitions<br/>for Main / Preload"]
-        F["Generate Preload bridge code<br/>Inject into Preload entry"]
-        E["Generate Main registration code<br/>Inject into Main entry"]
-
-        A --> B
-        B -->|build| CB
-        CB -->|retained channels| S
-        A -->|"dev<br/>all channels"| S
-        S --> F
-        S --> E
+flowchart TD
+    Definitions["createIpcInvoke definitions"] -->|Replace| Renderer["Renderer calling proxies"]
+    Definitions -->|Replace| Local
+    Definitions -->|Register| Vite["Vite ipc_invoke environment"]
+    subgraph Main["Electron main"]
+        Local["Main local calling proxies"] --> Runner["ModuleRunner"]
+        Register["Main shared IPC registration"] --> Runner
     end
+    Init["Initialization virtual modules"] -->|Inject into preload entry| Preload["Preload invoke bridge"]
+    Init -->|Inject into main entry| Main
+    Renderer --> Preload --> Register
+    Runner <-->|Module requests and cache invalidation| Vite
+```
 
-    subgraph Runtime["Runtime"]
-        G["Renderer calls an IPC function"]
-        FP["Preload loads its bundle<br/>contextBridge exposes bridge methods"]
-        EM["Main loads its bundle<br/>ipcMain.handle registers handlers"]
-        H["Proxy call<br/>window.__ipc[channel](input)"]
-        I["Preload forwards the call<br/>ipcRenderer.invoke(channel, input)"]
-        J["Main validates input<br/>Runs the handler"]
-        K["Promise resolves or rejects"]
+### Build
 
-        G --> H --> I --> J --> K
-        FP -.-> I
-        EM -.-> J
-    end
-
-    B -.-> H
-    F --> FP
-    E --> EM
-
-    F & E ~~~ G & FP & EM
+```mermaid
+flowchart TD
+    Definitions["createIpcInvoke definitions"] --> Renderer["Transform renderer calling proxies"]
+    Renderer --> Treeshaking["Select definitions retained after tree-shaking"]
+    Treeshaking --> Manifest["Generate channel manifest"]
+    Manifest --> Virtual["Generate initialization virtual modules"]
+    Virtual -->|Inject into main entry| Main["Statically import and register handlers"]
+    Virtual -->|Inject into preload entry| Preload["Expose channel bridges"]
 ```
 
 ## API
 
 ### `createIpcInvoke(channel).inputValidator(schema).handler(fn)`
 
-| Parameter | Description |
-| --------- | ----------- |
-| `channel` | IPC channel. Must be a string literal containing at least one non-whitespace character and be unique across all scanned definitions. |
-| `schema` | A schema that implements [StandardSchemaV1](https://github.com/standard-schema/standard-schema), such as a Zod schema. Validation runs in main and supports synchronous or asynchronous validation and transformations. |
-| `fn` | A synchronous or asynchronous handler that receives `{ event, data }`. |
-| `event` | The `IpcMainInvokeEvent` when called from the renderer, or `undefined` when called directly from main. |
-| `data` | The schema's validated output. When `.inputValidator(schema)` is omitted, as in `createIpcInvoke(channel).handler(fn)`, `data` is `undefined`. |
+#### Parameters
 
-With `.inputValidator(schema)`, the returned function's parameter type is `StandardSchemaV1.InferInput<typeof schema>`. Without it, no argument is required. The return type is `Promise<Awaited<ReturnType<typeof fn>>>`.
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `channel` | `string` | IPC channel. Must be a unique, non-blank string literal. |
+| `schema` | [`StandardSchemaV1`](https://github.com/standard-schema/standard-schema) | A schema implementing `StandardSchemaV1`, such as Zod. Omit `.inputValidator(schema)` to use `createIpcInvoke(channel).handler(fn)` directly. |
+| `fn` | `(context: { event: `[`IpcMainInvokeEvent`](https://www.electronjs.org/docs/latest/api/structures/ipc-main-invoke-event)` \| undefined, data: Data }) => Result` | `event`: the IPC event for a renderer call, or `undefined` for a main call.<br>`Data`: the schema output type, or `undefined` when `.inputValidator(schema)` is omitted. |
 
-When calling from the renderer, arguments and return values must follow the transport rules of [Electron IPC](https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args) and [`contextBridge`](https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support).
+#### Returns
 
-When calling from main, the function validates input and executes `fn` directly, without IPC. It always returns a Promise.
-
-| Calling environment | Execution path | Handler's `event` |
-| ------------------- | -------------- | ----------------- |
-| renderer | preload → IPC → validation in main → handler | The `IpcMainInvokeEvent` for this call |
-| main | validation in main → handler | `undefined` |
+| Type | Description |
+| ---- | ----------- |
+| `(input: Input) => Promise<Awaited<Result>>` | Callable from renderer/main.<br>`Input`: the schema input type; no argument is required when `.inputValidator(schema)` is omitted.<br>For renderer calls, arguments and return values must follow the transport rules of [Electron IPC](https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args) and [`contextBridge`](https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support). |
 
 ### `ipcInvoke(options?)`
 
-Returns a tuple of plugin instances in `[renderer, main, preload]` order. Add each plugin to its corresponding build.
+#### Parameters
 
-All three targets must use plugins returned by the same `ipcInvoke()` call and share the same definition root. In development, initialize the renderer before starting the main/preload builds. In production, complete the renderer build before building main/preload so they can use the channels retained in the renderer output.
+| Property | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `options.bridgeName` | `string` | `'__ipc'` | The global bridge property name in the renderer. Must contain a non-whitespace character. |
 
-| Option | Default | Description |
-| ------ | ------- | ----------- |
-| `include` | `['**/*.ipc.ts']` | Definition file globs relative to `root`. Must cover the paths where your `.ipc.ts` files are stored. |
-| `exclude` | `[]` | Additional exclusion patterns relative to `root`. The `node_modules`, `.git`, `dist`, and `dist-electron` directories are always excluded. |
-| `root` | Vite root | The shared definition root for all three targets. |
-| `bridgeName` | `'__ipc'` | The global bridge property name in the renderer. |
+#### Returns
 
-`include` and `exclude` do not support absolute paths, `..` path segments, or patterns starting with `!`. Put exclusion patterns in `exclude`.
+| Type | Description |
+| ---- | ----------- |
+| `[renderer: Plugin[], main: Plugin[], preload: Plugin[]]` | A tuple of Vite plugin arrays. |
 
-## Usage Notes
+## ⚠️ Notes
 
-`.ipc.ts` files may only export IPC definitions and types. IPC definitions must directly export the complete call chain using a top-level `export const`. Default runtime exports, runtime re-exports, and other runtime exports are not supported. Export constants, schemas, and helper functions from separate modules if they need to be shared.
+- **When a module uses `createIpcInvoke` to define and export functions, it may export only those functions and types.**
+- During development, IPC handlers are not guaranteed to share module-level variables or objects with ordinary modules imported directly by main.

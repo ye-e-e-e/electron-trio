@@ -1,6 +1,6 @@
 {
 	"name": "electron-ipc-invoke",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Type-safe Electron invoke/handle IPC from a shared function definition.",
 	"keywords": [
 		"vite",
@@ -20,7 +20,7 @@
 	"type": "module",
 	"exports": {
 		".": "./dist/index.mjs",
-		"./renderer": "./dist/renderer.mjs",
+		"./dev": "./dist/dev.mjs",
 		"./vite": "./dist/vite.mjs",
 		"./package.json": "./package.json"
 	},
@@ -55,21 +55,20 @@
 	},
 	"dependencies": {
 		"@standard-schema/spec": "^1.1.0",
-		"chokidar": "^5.0.0",
 		"magic-string": "^1.2.3",
-		"picomatch": "^4.0.7",
-		"tinyglobby": "^0.2.17"
+		"ws": "^8.21.3"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.2",
 		"@commitlint/config-conventional": "^21.2.2",
 		"@types/node": "^24.13.4",
-		"@types/picomatch": "^4.0.3",
+		"@types/ws": "^8.18.1",
 		"electron": "44.0.0",
 		"husky": "^9.1.7",
 		"tsdown": "^0.23.0",
 		"typescript": "^7.0.2",
 		"vite": "8.2.0",
+		"vite-plugin-electron": "1.1.2",
 		"vitest": "^5.0.0",
 		"zod": "^4.6.1"
 	}

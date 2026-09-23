@@ -1,6 +1,6 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
-import { HANDLER_KEY } from './internal/runtime-key.js'
+import { HANDLER_KEY } from './constants'
 
 export interface IpcInvokeContext<Data> {
   event: IpcMainInvokeEvent | undefined

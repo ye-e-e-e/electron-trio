@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { getVersion } from "../electron/custom.ipc"
+import { getVersion } from "../electron/custom"
 
 export default function App() {
 	const [version, setVersion] = useState("")

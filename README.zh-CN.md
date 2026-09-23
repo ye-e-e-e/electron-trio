@@ -2,7 +2,9 @@
 
 [English](README.md)
 
-只需定义一次函数，即可进行类型安全的跨进程调用：基于 Electron 原生 invoke/handle，通过构建插件自动生成注册和桥接、推导参数和返回类型，无需手写 IPC 样板代码及类型声明。设计灵感来自 TanStack Start 的 `createServerFn`。
+只需定义一次函数，即可进行类型安全的跨进程调用：基于 Electron 原生 invoke/handle，通过插件自动生成注册和桥接、推导参数和返回类型，无需手写 IPC 样板代码及类型声明。设计灵感来自 TanStack Start 的 `createServerFn`。
+
+开发时，修改 `createIpcInvoke` 定义的函数会在下次调用时生效，无需重启 Electron 主进程。
 
 ## 安装
 
@@ -21,7 +23,7 @@ npm install electron-ipc-invoke
 
 ### 1. 添加 Vite 插件
 
-分别把三个目标插件接入 renderer、main 和 preload 构建：
+分别把对应插件接入 renderer、main 和 preload 构建：
 
 ```ts
 // vite.config.ts
@@ -50,137 +52,108 @@ export default defineConfig(() => {
 })
 ```
 
-### 2. 在 `.ipc.ts` 文件中使用 `createIpcInvoke` 定义函数
+### 2. 使用 `createIpcInvoke` 定义函数
 
 ```ts
-// electron/custom.ipc.ts
-import { app } from "electron"
+// electron/custom.ts
 import { z } from "zod"
 import { createIpcInvoke } from "electron-ipc-invoke"
 
-export const getVersion = createIpcInvoke("channel")
-    .inputValidator(z.object({ prefix: z.string() }))
+export const greet = createIpcInvoke("greet")
+    .inputValidator(z.object({ name: z.string() }))
     .handler(({ event, data }) => {
         // event: IpcMainInvokeEvent | undefined
-        // data: { prefix: string }
-        return data.prefix + app.getVersion()
+        // data: { name: string }
+        return `Hello, ${data.name}!`
     })
 ```
 
 ### 3. 在 renderer 调用函数
 
-```ts
+```tsx
 // src/App.tsx
-import { getVersion } from "../electron/custom.ipc"
+import { greet } from "../electron/custom"
 
-// 参数由 schema 推导，返回类型由 handler 推导
-const version = await getVersion({ prefix: "v" }) // string
+export default function App() {
+    async function sayHello() {
+        // 参数由 schema 推导，返回类型由 handler 推导
+        // greet: ({ name: string }) => Promise<string>
+        const message = await greet({ name: "Electron" })
+        console.log(message) // "Hello, Electron!"
+    }
+
+    return <button onClick={sayHello}>hello</button>
+}
 ```
 
 ## 工作原理
 
-构建插件把通过 `createIpcInvoke` 定义的函数，在三个构建环境中分别做不同处理。核心逻辑如下：
+插件会根据运行环境转换 `createIpcInvoke` 定义的函数，并通过虚拟模块向 main 和 preload 入口注入初始化代码。dev 代理通过模块路径和导出名定位函数，运行时按需加载更新后的模块；build 根据 tree-shaking 后的 channel 清单生成注册和桥接代码。
 
-```ts
-// renderer：被定义的函数会被替换为 window 调用，其余实现及运行时依赖都会被移除
-// 类型来自原始定义的 TypeScript 签名；因此导入同一函数即可同时获得类型推导和 IPC 调用能力。
-export const getVersion = async (input) => globalThis.__ipc["channel"](input)
+### Dev
 
-// preload：插件自动在 preload 入口文件注入桥接代码
-contextBridge.exposeInMainWorld("__ipc", {
-    ["channel"]: (input) => ipcRenderer.invoke("channel", input),
-})
-
-// main：插件自动在 main 入口文件注入注册代码
-ipcMain.handle("channel", (event, input) => execute(event, input))
-```
+`electron-ipc-invoke/dev` 仅导出 `initRuntime` 和 `getRuntime`。插件在 main 中初始化共享实例，用它处理本地调用与 renderer IPC 分发，并在退出时通过 `(await getRuntime()).close()` 关闭。重复关闭只清理一次；关闭后的实例仍保留在缓存中，并拒绝后续调用。业务代码无需管理这套生命周期。
 
 ```mermaid
----
-config:
-  layout: dagre
-  markdownAutoWrap: false
-  flowchart:
-    nodeSpacing: 36
-    rankSpacing: 40
-  themeVariables:
-    fontSize: 14px
----
-flowchart TB
-    subgraph Compile["编译阶段"]
-        A["扫描匹配的 .ipc.ts<br/>建立定义索引"]
-        B["Renderer 按需替换实现<br/>生成调用代理"]
-        CB["tree-shaking"]
-        S["确定 Main / Preload 使用的定义"]
-        F["生成 Preload 桥接代码<br/>注入 Preload 入口"]
-        E["生成 Main 注册代码<br/>注入 Main 入口"]
-
-        A --> B
-        B -->|build| CB
-        CB -->|保留的 channel| S
-        A -->|"dev<br/>全部 channel"| S
-        S --> F
-        S --> E
+flowchart TD
+    Definitions["createIpcInvoke 定义"] -->|替换| Renderer["renderer 调用代理"]
+    Definitions -->|替换| Local
+    Definitions -->|登记| Vite["Vite ipc_invoke 环境"]
+    subgraph Main["Electron main"]
+        Local["main 本地调用代理"] --> Runner["ModuleRunner"]
+        Register["main 通用注册"] --> Runner
     end
+    Init["初始化虚拟模块"] -->|注入 preload 入口| Preload["preload 通用桥接"]
+    Init -->|注入 main 入口| Main
+    Renderer --> Preload --> Register
+    Runner <-->|请求模块、缓存失效| Vite
+```
 
-    subgraph Runtime["运行阶段"]
-        G["Renderer 调用 IPC 函数"]
-        FP["Preload 加载产物<br/>contextBridge 暴露桥接方法"]
-        EM["Main 加载产物<br/>ipcMain.handle 注册 handler"]
-        H["代理调用<br/>window.__ipc[channel](input)"]
-        I["Preload 转发<br/>ipcRenderer.invoke(channel, input)"]
-        J["Main 校验输入<br/>执行 handler"]
-        K["Promise 返回结果或异常"]
+### Build
 
-        G --> H --> I --> J --> K
-        FP -.-> I
-        EM -.-> J
-    end
-
-    B -.-> H
-    F --> FP
-    E --> EM
-
-    F & E ~~~ G & FP & EM
+```mermaid
+flowchart TD
+    Definitions["createIpcInvoke 定义"] --> Renderer["转换 renderer 调用代理"]
+    Renderer --> Treeshaking["tree-shaking 筛选保留的定义"]
+    Treeshaking --> Manifest["生成 channel 清单"]
+    Manifest --> Virtual["生成初始化虚拟模块"]
+    Virtual -->|注入 main 入口| Main["静态导入并注册 handler"]
+    Virtual -->|注入 preload 入口| Preload["暴露 channel 桥接"]
 ```
 
 ## API
 
 ### `createIpcInvoke(channel).inputValidator(schema).handler(fn)`
 
-| 参数      | 说明                                                                                                                                               |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `channel` | IPC channel，必须是包含非空白字符的字符串字面量，且在扫描范围内唯一 |
-| `schema`  | 任何实现 [StandardSchemaV1](https://github.com/standard-schema/standard-schema) 规范的schema，例如 `zod`。 在 main 中进行验证，支持同步/异步验证和转换 |
-| `fn`      | 同步或异步 handler，接收 `{ event, data }`                                                                                                         |
-| `event`   | renderer 调用时为 `IpcMainInvokeEvent`，main 调用时为 `undefined`                                                                                  |
-| `data`    | schema 校验后的输出，没有 inputValidator 即 createIpcInvoke(channel).handler(fn) 时为 `undefined`                                                  |
+#### Parameters
 
-使用 `.inputValidator(schema)` 时，返回函数的参数类型为 `StandardSchemaV1.InferInput<typeof schema>`；省略时无需传参。返回类型为 `Promise<Awaited<ReturnType<typeof fn>>>`。
+| 属性 | 类型 | 说明 |
+| ---- | ---- | ---- |
+| `channel` | `string` | IPC channel，须为唯一的非空白字符串字面量 |
+| `schema` | [`StandardSchemaV1`](https://github.com/standard-schema/standard-schema) | 实现 `StandardSchemaV1` 的 schema，例如 Zod。可省略 `.inputValidator(schema)`，直接使用 `createIpcInvoke(channel).handler(fn)` |
+| `fn` | `(context: { event: `[`IpcMainInvokeEvent`](https://www.electronjs.org/docs/latest/api/structures/ipc-main-invoke-event)` \| undefined, data: Data }) => Result` | `event`：renderer 调用对应的 IPC 事件；main 调用时为 `undefined`<br>`Data`：schema 输出类型；省略 `.inputValidator(schema)` 时为 `undefined` |
 
-在 renderer 中调用时，参数和返回值必须符合 [Electron IPC](https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args) 与 [`contextBridge`](https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support) 的传输规则。
+#### Returns
 
-在 main 中调用时会直接校验然后执行 `fn`，不经过 IPC，始终返回 Promise。
-
-| 调用环境 | 执行路径                            | handler 的 `event`              |
-| -------- | ----------------------------------- | ------------------------------- |
-| renderer | preload → IPC → main 校验 → handler | 本次调用的 `IpcMainInvokeEvent` |
-| main     | main 校验 → handler                 | `undefined`                     |
+| 类型 | 说明 |
+| ---- | ---- |
+| `(input: Input) => Promise<Awaited<Result>>` | 支持 renderer/main 调用<br>`Input`：schema 输入类型；省略 `.inputValidator(schema)` 时无需传参<br>renderer 调用时，参数和返回值须符合 [Electron IPC](https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args) 与 [`contextBridge`](https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support) 的传输规则 |
 
 ### `ipcInvoke(options?)`
 
-返回按 `[renderer, main, preload]` 顺序排列的插件实例元组，分别接入对应构建。
-三个目标必须使用同一次 `ipcInvoke()` 调用返回的插件并共享定义根目录。开发时应先初始化 renderer，再启动 main/preload 构建；生产构建时必须先完成 renderer 构建，再构建 main/preload，以便使用 renderer 产物中保留的 channel。
+#### Parameters
 
-| 选项         | 默认值            | 说明                                                                                         |
-| ------------ | ----------------- | -------------------------------------------------------------------------------------------- |
-| `include`    | `['**/*.ipc.ts']` | 相对于 `root` 的定义文件 glob，需覆盖实际存放 `.ipc.ts` 文件的路径                           |
-| `exclude`    | `[]`              | 相对于 `root` 的额外排除规则，`node_modules`、`.git`、`dist` 和 `dist-electron` 目录始终排除 |
-| `root`       | Vite root         | 三个目标共用的定义根目录                                                                     |
-| `bridgeName` | `'__ipc'`         | renderer 中的全局桥接属性名                                                                  |
+| 属性 | 类型 | 默认值 | 说明 |
+| ---- | ---- | ------ | ---- |
+| `options.bridgeName` | `string` | `'__ipc'` | renderer 中的全局桥接属性名，须包含非空白字符 |
 
-`include` 和 `exclude` 不支持绝对路径、`..` 路径段或以 `!` 开头的模式；排除规则请写入 `exclude`。
+#### Returns
 
-## 注意事项
+| 类型 | 说明 |
+| ---- | ---- |
+| `[renderer: Plugin[], main: Plugin[], preload: Plugin[]]` | Vite 插件元组 |
 
-`.ipc.ts` 文件只允许导出 IPC 定义和类型。IPC 定义必须通过顶层 `export const` 直接导出完整调用链；不支持默认运行时导出、运行时重导出或其他运行时导出。常量、schema 和辅助函数如需导出，应放在其他模块中。
+## ⚠️ 注意
+
+- **在模块中使用 `createIpcInvoke` 定义并导出函数时，该模块只允许导出这类函数和类型。**
+- 开发时，IPC handler 与 main 中直接导入的普通模块，不保证共享模块级变量或对象。

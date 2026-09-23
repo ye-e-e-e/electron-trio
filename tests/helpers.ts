@@ -15,7 +15,6 @@ type Bridge = Record<string, (input: unknown) => unknown>
 // Nested Vite projects resolve fixture imports to source without a library build.
 export const sourceAliases = [
   { find: /^electron-ipc-invoke$/, replacement: path.resolve(import.meta.dirname, '../src/index.ts') },
-  { find: /^electron-ipc-invoke\/renderer$/, replacement: path.resolve(import.meta.dirname, '../src/renderer.ts') },
 ]
 
 export async function fixture(t: TestContext, files: Record<string, string> = {}) {
