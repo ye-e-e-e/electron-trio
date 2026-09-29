@@ -56,6 +56,7 @@ Use pnpm `10.33.4` and Node.js matching `^20.19.0 || >=22.12.0`, as declared in 
 - `pnpm install`: install dependencies and initialize Husky hooks.
 - `pnpm dev`: rebuild the library on changes using tsdown.
 - `pnpm build`: generate ESM bundles and TypeScript declarations.
+- `pnpm format [paths...]`: format all supported files, or only the supplied paths, with Oxfmt.
 - `pnpm typecheck`: check source, tests, and compile-time assertions without emitting files.
 - `pnpm test` / `pnpm test:watch`: run the default suite once or in watch mode.
 - `pnpm test:package`: build and test the distributable package.
@@ -65,7 +66,7 @@ To run an example, build the library, then run `pnpm install` and `pnpm dev` ins
 
 ## Coding Style & Naming Conventions
 
-Use strict TypeScript and explicit type-only imports. Match nearby formatting: source and tests generally use two spaces, single quotes, and no semicolons; some configuration files use tabs and double quotes. No formatter or code linter is configured.
+Use strict TypeScript and explicit type-only imports.
 
 Use camelCase for functions and variables, PascalCase for types and classes, and descriptive kebab-case module filenames. Use `#/...` for source imports that would traverse parent directories; keep `./...` imports relative. Omit file extensions in both forms. Plugin directories use `<name>-plugin` with a `plugin.ts` entry; supporting modules are named by their responsibility. IPC definitions are identified by their exports, without a required filename suffix.
 
