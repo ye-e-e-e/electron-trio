@@ -2,11 +2,11 @@ import { expect, test } from 'vitest'
 import { analyzeIpcModule } from '#/compiler/ipc-analyzer'
 
 test.for([
-  `import * as ipc from 'electron-start'; export const run = ipc.createIpcInvoke('run').handler(fn)`,
-  `import * as ipc from 'electron-start'; export const run = ipc.createIpcInvoke('run').inputValidator(schema).handler(fn)`,
-  `import * as ipc from 'electron-start'; const define = ipc['createIpcInvoke']; export const run = define('run').handler(fn)`,
-  `import { createIpcInvoke } from 'electron-start'; const define = createIpcInvoke; const builder = define('run'); const validated = builder.inputValidator(schema); export const run = validated.handler(fn)`,
-  `import { createIpcInvoke as define } from 'electron-start'; const builder = define('run') as Builder; export const run = (builder!.handler(fn) satisfies Handler)`,
+  `import * as ipc from 'electron-trio'; export const run = ipc.createIpcInvoke('run').handler(fn)`,
+  `import * as ipc from 'electron-trio'; export const run = ipc.createIpcInvoke('run').inputValidator(schema).handler(fn)`,
+  `import * as ipc from 'electron-trio'; const define = ipc['createIpcInvoke']; export const run = define('run').handler(fn)`,
+  `import { createIpcInvoke } from 'electron-trio'; const define = createIpcInvoke; const builder = define('run'); const validated = builder.inputValidator(schema); export const run = validated.handler(fn)`,
+  `import { createIpcInvoke as define } from 'electron-trio'; const builder = define('run') as Builder; export const run = (builder!.handler(fn) satisfies Handler)`,
 ])(
   'resolves namespace imports and immutable local aliases: %s',
   async (code) => {
@@ -39,7 +39,7 @@ test('does not recognize factories or builders imported from other modules', asy
 test('recognizes local builders without inspecting schema or handler imports', async () => {
   const { analysis } = await analyzeIpcModule(
     `
-    import { createIpcInvoke } from 'electron-start'
+    import { createIpcInvoke } from 'electron-trio'
     import { schema, handler } from './missing'
     const builder = createIpcInvoke('run').inputValidator(schema)
     export const run = builder.handler(handler)
@@ -53,8 +53,8 @@ test('recognizes local builders without inspecting schema or handler imports', a
 
 test('factory and builder exports remain ordinary until a handler is defined', async () => {
   for (const code of [
-    `export { createIpcInvoke as define } from 'electron-start'`,
-    `import { createIpcInvoke } from 'electron-start'; export const builder = createIpcInvoke('run').inputValidator(schema)`,
+    `export { createIpcInvoke as define } from 'electron-trio'`,
+    `import { createIpcInvoke } from 'electron-trio'; export const builder = createIpcInvoke('run').inputValidator(schema)`,
   ])
     expect((await analyzeIpcModule(code, '/helper.ts')).analysis).toEqual({
       kind: 'ordinary',
@@ -71,7 +71,7 @@ test('reports malformed local builders at their declaration without executing th
   ]) {
     await expect(
       analyzeIpcModule(
-        `import { createIpcInvoke } from 'electron-start'; const builder = ${builder}; export const run = builder.handler(fn)`,
+        `import { createIpcInvoke } from 'electron-trio'; const builder = ${builder}; export const run = builder.handler(fn)`,
         '/definition.ts',
       ),
     ).rejects.toThrow(/\/definition.ts:1:\d+:/)
@@ -86,7 +86,7 @@ test('recognized factory chains fail instead of retaining malformed implementati
   ])
     await expect(
       analyzeIpcModule(
-        `import * as ipc from 'electron-start'; export const run = ${chain}`,
+        `import * as ipc from 'electron-trio'; export const run = ${chain}`,
         '/definition.ts',
       ),
     ).rejects.toThrow('/definition.ts')
@@ -95,8 +95,8 @@ test('recognized factory chains fail instead of retaining malformed implementati
 test('unrelated functions and shadowed parameters are not factory bindings', async () => {
   for (const code of [
     `import * as ipc from './fake'; export const run = ipc.createIpcInvoke('x').handler(fn)`,
-    `import * as ipc from 'electron-start'; export const run = (ipc: any) => ipc.createIpcInvoke('x').handler(fn)`,
-    `import type * as ipc from 'electron-start'; export const run = ipc.createIpcInvoke('x').handler(fn)`,
+    `import * as ipc from 'electron-trio'; export const run = (ipc: any) => ipc.createIpcInvoke('x').handler(fn)`,
+    `import type * as ipc from 'electron-trio'; export const run = ipc.createIpcInvoke('x').handler(fn)`,
   ])
     expect((await analyzeIpcModule(code, '/definition.ts')).analysis).toEqual({
       kind: 'ordinary',

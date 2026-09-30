@@ -3,13 +3,13 @@ import type { Plugin } from 'vite'
 import { MAIN_ENVIRONMENT } from '#/vite/constants'
 import { renderOutputPaths } from '#/vite/output-paths'
 
-const RENDERER_FILE_MARKER = '__ELECTRON_START_RENDERER_FILE__'
+const RENDERER_FILE_MARKER = '__ELECTRON_TRIO_RENDERER_FILE__'
 
 /** Replace loadWindow's file placeholder relative to its containing main chunk. */
 export function loadWindowPlugin(): Plugin {
   let rendererFile: string
   return {
-    name: 'electron-start:load-window',
+    name: 'electron-trio:load-window',
     apply: 'build',
     enforce: 'post',
     applyToEnvironment: (environment) => environment.name === MAIN_ENVIRONMENT,

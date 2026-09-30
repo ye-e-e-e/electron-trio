@@ -31,7 +31,7 @@ export class ElectronProcess {
       const binary =
         process.env.ELECTRON_BINARY ?? (require('electron') as string)
       const packageJson = createRequire(import.meta.url).resolve(
-        'electron-start/package.json',
+        'electron-trio/package.json',
       )
       const bootstrap = path.join(
         path.dirname(packageJson),
@@ -39,7 +39,7 @@ export class ElectronProcess {
       )
       const env = {
         ...process.env,
-        ELECTRON_START_RUNNER: JSON.stringify(config),
+        ELECTRON_TRIO_RUNNER: JSON.stringify(config),
         VITE_DEV_SERVER_URL: config.rendererUrl,
       }
       delete (env as NodeJS.ProcessEnv).ELECTRON_RUN_AS_NODE

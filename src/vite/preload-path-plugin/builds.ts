@@ -45,7 +45,7 @@ export class PreloadBuilds {
     let initialFile: string | undefined
     const outputs = this.outputs
     const capture: Plugin = {
-      name: 'electron-start:preload-output',
+      name: 'electron-trio:preload-output',
       applyToEnvironment: (environment) =>
         environment.name === PRELOAD_ENVIRONMENT,
       generateBundle(options, bundle) {

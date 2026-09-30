@@ -15,7 +15,7 @@ import { devPreloadModule, preloadModule } from './preload-module'
 /** Validate the entry and inject IPC initialization, with state local to each environment. */
 export function ipcEntryPlugin(context: IpcContext): Plugin {
   return {
-    name: 'electron-start:ipc-entry',
+    name: 'electron-trio:ipc-entry',
     enforce: 'pre',
     applyToEnvironment(environment) {
       const target =
@@ -31,7 +31,7 @@ export function ipcEntryPlugin(context: IpcContext): Plugin {
           : environment.config.command === 'serve'
       const getEntry = perEnvironmentState(() => new HostEntry(target))
       return {
-        name: `electron-start:ipc-${target}-entry`,
+        name: `electron-trio:ipc-${target}-entry`,
         perEnvironmentStartEndDuringDev: true,
         async buildStart(input) {
           await getEntry(this).prepare(this, input)

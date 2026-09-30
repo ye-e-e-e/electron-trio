@@ -1,4 +1,4 @@
-# electron-start
+# electron-trio
 
 [简体中文](README.zh-CN.md)
 
@@ -15,7 +15,7 @@ Simplify Electron application development and builds with Vite.
 ### 1. Install project dependencies
 
 ```bash
-npm install electron-start
+npm install electron-trio
 ```
 
 ### 2. Configure the Vite plugin
@@ -23,11 +23,11 @@ npm install electron-start
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
-import { electronStart } from 'electron-start/vite'
+import { electronTrio } from 'electron-trio/vite'
 
 export default defineConfig({
   plugins: [
-    electronStart({
+    electronTrio({
       entry: 'electron/main.ts', // Main process entry file
     }),
   ],
@@ -38,7 +38,7 @@ export default defineConfig({
 
 ```ts
 // electron/preload.ts
-import { createPreload } from 'electron-start'
+import { createPreload } from 'electron-trio'
 
 export default createPreload(() => {
   // The IPC bridge is generated automatically.
@@ -50,7 +50,7 @@ export default createPreload(() => {
 ```ts
 // electron/main.ts
 import { app, BrowserWindow } from 'electron'
-import { loadWindow } from 'electron-start'
+import { loadWindow } from 'electron-trio'
 import preload from './preload'
 
 app.whenReady().then(() => {
@@ -63,7 +63,7 @@ app.whenReady().then(() => {
 
 ```ts
 // electron/custom.ts
-import { createIpcInvoke } from 'electron-start'
+import { createIpcInvoke } from 'electron-trio'
 
 export const ping = createIpcInvoke('ping').handler(() => 'pong')
 ```
@@ -101,7 +101,7 @@ Define an async function once and import it from renderer or main, with inferred
 
 ```ts
 // electron/custom.ts
-import { createIpcInvoke } from 'electron-start'
+import { createIpcInvoke } from 'electron-trio'
 import { z } from 'zod'
 
 export const greet = createIpcInvoke('greet')
@@ -141,7 +141,7 @@ Declare a preload entry whose default import in main is the preload's absolute p
 ```ts
 // electron/preload.ts
 import { contextBridge } from 'electron'
-import { createPreload } from 'electron-start'
+import { createPreload } from 'electron-trio'
 
 export default createPreload(() => {
   contextBridge.exposeInMainWorld('appInfo', { name: 'Example' })
@@ -151,7 +151,7 @@ export default createPreload(() => {
 ```ts
 // electron/main.ts
 import { app, BrowserWindow } from 'electron'
-import { loadWindow } from 'electron-start'
+import { loadWindow } from 'electron-trio'
 import preload from './preload'
 
 app.whenReady().then(async () => {
@@ -182,7 +182,7 @@ Load the renderer into a `BrowserWindow`: use `VITE_DEV_SERVER_URL` during devel
 ```ts
 // electron/main.ts
 import { app, BrowserWindow } from 'electron'
-import { loadWindow } from 'electron-start'
+import { loadWindow } from 'electron-trio'
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow()
@@ -194,7 +194,7 @@ app.whenReady().then(async () => {
 
 ## Vite Plugin
 
-### `electronStart(options)`
+### `electronTrio(options)`
 
 Manage Electron development startup, builds, and IPC integration through Vite. The default output directories are `dist/client` for renderer, `dist/main` for main, and `dist/preload` for preload. Customize each environment through Vite's `environments` configuration.
 
@@ -207,11 +207,11 @@ Manage Electron development startup, builds, and IPC integration through Vite. T
 ```ts
 // vite.config.ts (minimal configuration)
 import { defineConfig } from 'vite'
-import { electronStart } from 'electron-start/vite'
+import { electronTrio } from 'electron-trio/vite'
 
 export default defineConfig({
   plugins: [
-    electronStart({
+    electronTrio({
       entry: 'electron/main.ts',
     }),
   ],
@@ -221,11 +221,11 @@ export default defineConfig({
 ```ts
 // vite.config.ts (all plugin options and environment customization)
 import { defineConfig } from 'vite'
-import { electronStart } from 'electron-start/vite'
+import { electronTrio } from 'electron-trio/vite'
 
 export default defineConfig({
   plugins: [
-    electronStart({
+    electronTrio({
       entry: 'electron/main.ts',
       bridgeName: 'desktop',
       electron: { args: ['--enable-logging'] },

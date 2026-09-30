@@ -1,2 +1,2 @@
-export { electronStart } from './vite/plugin'
-export type { ElectronStartViteOptions } from './vite/types'
+export { electronTrio } from './vite/plugin'
+export type { ElectronTrioViteOptions } from './vite/types'

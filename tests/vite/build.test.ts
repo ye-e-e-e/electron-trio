@@ -344,7 +344,7 @@ test('active duplicate channels report both ordinary filenames', async (t) => {
 
 test('ordinary runtime exports and private factory calls remain local modules', async (t) => {
   const root = await fixture(t, {
-    'renderer.ts': `import { createIpcInvoke } from 'electron-start';
+    'renderer.ts': `import { createIpcInvoke } from 'electron-trio';
       const privateFn = createIpcInvoke('private').handler(() => 7);
       export const ordinary = () => privateFn(); export const value = 3`,
     'preload.ts': '',

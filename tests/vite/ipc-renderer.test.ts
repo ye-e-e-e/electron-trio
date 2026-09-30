@@ -21,7 +21,7 @@ test.for([undefined, '__custom"\\bridge'])(
   async (bridgeName, t) => {
     const root = await fixture(t, {
       'helpers.ts':
-        "export { createRendererInvoker, createDevRendererInvoker } from 'virtual:electron-start:ipc-renderer'",
+        "export { createRendererInvoker, createDevRendererInvoker } from 'virtual:electron-trio:ipc-renderer'",
     })
     const output = await bundle(
       root,
@@ -87,7 +87,7 @@ test.for(['raw', 'url', 'raw&variant=desktop', 'variant=desktop&url'])(
   async (query, t) => {
     const root = await fixture(t, {
       'definition.ts':
-        "import { createIpcInvoke } from 'electron-start'; export const run = createIpcInvoke('run').handler(() => 1)",
+        "import { createIpcInvoke } from 'electron-trio'; export const run = createIpcInvoke('run').handler(() => 1)",
     })
     const server = await createServer({
       root,
@@ -113,7 +113,7 @@ test(
   { timeout: 30000 },
   async (t) => {
     const definition = (channel: string) =>
-      `import { createIpcInvoke } from 'electron-start'; import { z } from 'zod'; export const run = createIpcInvoke('${channel}').inputValidator(z.void()).handler(() => 'MAIN_ONLY_SENTINEL')`
+      `import { createIpcInvoke } from 'electron-trio'; import { z } from 'zod'; export const run = createIpcInvoke('${channel}').inputValidator(z.void()).handler(() => 'MAIN_ONLY_SENTINEL')`
     const root = await fixture(t, {
       'active.ts': definition('active'),
       'hidden.ts': 'invalid @@@',

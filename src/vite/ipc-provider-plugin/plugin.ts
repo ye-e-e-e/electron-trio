@@ -14,7 +14,7 @@ import { IpcProvider } from './provider'
 export function ipcProviderPlugin(context: IpcContext): Plugin {
   const providers = new WeakMap<DevEnvironment, IpcProvider>()
   return {
-    name: 'electron-start:provider',
+    name: 'electron-trio:provider',
     apply: 'serve',
     perEnvironmentStartEndDuringDev: true,
     applyToEnvironment: (environment) => environment.name === MAIN_ENVIRONMENT,

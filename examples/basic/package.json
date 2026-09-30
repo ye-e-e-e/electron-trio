@@ -1,5 +1,5 @@
 {
-  "name": "electron-start-example-basic",
+  "name": "electron-trio-example-basic",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "electron": "^44.0.0",
-    "electron-start": "file:../..",
+    "electron-trio": "file:../..",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^4.6.1"

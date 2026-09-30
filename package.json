@@ -1,19 +1,19 @@
 {
-  "name": "electron-start",
+  "name": "electron-trio",
   "version": "0.3.0",
   "description": "Simplify Electron application development and builds with Vite.",
   "keywords": [
     "electron",
     "vite-plugin",
     "type-safe",
-	"rpc",
-	"typescript"
+    "rpc",
+    "typescript"
   ],
   "license": "Apache-2.0",
   "author": "ye-e-e-e",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ye-e-e-e/electron-start.git"
+    "url": "git+https://github.com/ye-e-e-e/electron-trio.git"
   },
   "type": "module",
   "exports": {

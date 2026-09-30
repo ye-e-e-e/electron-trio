@@ -4,7 +4,7 @@ import path from 'node:path'
 import { createBuilder } from 'vite'
 // Optional real Electron test: ELECTRON_BINARY=/path/to/electron pnpm test:electron
 import { expect, test } from 'vitest'
-import { electronStart } from '#/vite'
+import { electronTrio } from '#/vite'
 import { sourceAliases } from '../helpers'
 
 const binary = process.env.ELECTRON_BINARY
@@ -34,7 +34,7 @@ for (const mode of [
     t.onTestFinished(() => fs.rm(root, { recursive: true, force: true }))
     const outDir = `out-${mode.name}`
     const files = {
-      'src/ipc/smoke.ipc.ts': `import { z } from 'zod'; import { createIpcInvoke } from 'electron-start'
+      'src/ipc/smoke.ipc.ts': `import { z } from 'zod'; import { createIpcInvoke } from 'electron-trio'
         export const version = createIpcInvoke('version').handler(({ data }) => {
           if (data !== undefined) throw new Error('Unexpected data without an input validator')
           return process.versions.electron
@@ -48,9 +48,9 @@ for (const mode of [
           try { await fail() } catch { errorRejected = true }
           let validationRejected = false; try { await sum({ a: 2 } as any) } catch { validationRejected = true }; return { version: await version(), remote: await sum({ a: '2' }), validationRejected, errorRejected }
         }`,
-      'preload.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => {})`,
+      'preload.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => {})`,
       'main.ts': `import { sum } from './src/ipc/smoke.ipc'; import { app, BrowserWindow } from 'electron'
-        ${mode.externalRuntime ? '' : "import { loadWindow } from 'electron-start'"}
+        ${mode.externalRuntime ? '' : "import { loadWindow } from 'electron-trio'"}
         import preload from './preload'
         import path from 'node:path'
         import { fileURLToPath } from 'node:url'
@@ -79,7 +79,7 @@ for (const mode of [
       root,
       configFile: false,
       logLevel: 'silent',
-      plugins: [electronStart({ entry: 'main.ts' })],
+      plugins: [electronTrio({ entry: 'main.ts' })],
       resolve: { alias: sourceAliases },
       build: {
         outDir,
@@ -100,7 +100,7 @@ for (const mode of [
                 'electron',
                 'node:path',
                 'node:url',
-                ...(mode.externalRuntime ? ['electron-start'] : []),
+                ...(mode.externalRuntime ? ['electron-trio'] : []),
               ],
               output: {
                 format: mode.mainFormat,

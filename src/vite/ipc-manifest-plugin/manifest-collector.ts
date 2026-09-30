@@ -50,7 +50,7 @@ export class IpcManifestCollector {
     let definitions: readonly DefinitionRecord[] = []
     const collector = this
     const plugin: Rolldown.Plugin = {
-      name: 'electron-start:ipc-manifest-output',
+      name: 'electron-trio:ipc-manifest-output',
       renderStart: {
         order: 'pre',
         handler() {

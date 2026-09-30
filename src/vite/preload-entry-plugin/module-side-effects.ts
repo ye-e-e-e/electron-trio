@@ -8,12 +8,12 @@ export function preloadModuleSideEffects(
 ): ModuleSideEffects {
   if (typeof sideEffects === 'function')
     return (id, external) =>
-      id === 'electron-start' ? false : sideEffects(id, external)
+      id === 'electron-trio' ? false : sideEffects(id, external)
 
-  const apiRule = { test: /^electron-start$/, sideEffects: false }
+  const apiRule = { test: /^electron-trio$/, sideEffects: false }
   if (Array.isArray(sideEffects))
     return sideEffects.every((rule) => typeof rule === 'string')
-      ? sideEffects.filter((id) => id !== 'electron-start')
+      ? sideEffects.filter((id) => id !== 'electron-trio')
       : [apiRule, ...sideEffects]
 
   if (sideEffects === false) return false

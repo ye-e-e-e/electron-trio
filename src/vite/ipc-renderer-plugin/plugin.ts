@@ -7,7 +7,7 @@ import type { IpcContext } from '#/vite/ipc-plugin/context'
 import { ipcDefinitionId } from '#/vite/ipc-plugin/module-id'
 import { rendererModule } from './renderer-module'
 
-const IPC_RENDERER_MODULE = 'virtual:electron-start:ipc-renderer'
+const IPC_RENDERER_MODULE = 'virtual:electron-trio:ipc-renderer'
 const RESOLVED_IPC_RENDERER_MODULE = '\0' + IPC_RENDERER_MODULE
 
 export function ipcRendererPlugin(context: IpcContext): Plugin {
@@ -15,7 +15,7 @@ export function ipcRendererPlugin(context: IpcContext): Plugin {
   const signatures = new Map<string, string | undefined>()
   let updateQueue = Promise.resolve()
   return {
-    name: 'electron-start:ipc-renderer',
+    name: 'electron-trio:ipc-renderer',
     enforce: 'pre',
     applyToEnvironment(environment) {
       return environment.name === 'client'

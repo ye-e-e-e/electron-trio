@@ -2,10 +2,10 @@ import { expect, test } from 'vitest'
 import { analyzePreloadEntry } from '#/compiler/preload-analyzer'
 
 test.for([
-  `import { createPreload as define } from 'electron-start'; export default define(() => 42)`,
-  `import * as api from 'electron-start'; export default api.createPreload(() => 42)`,
-  `import * as api from 'electron-start'; const define = api['createPreload']; const alias = define; export default alias(() => 42)`,
-  `import { createPreload } from 'electron-start'; const define = createPreload as Factory; export default (define!(() => 42) satisfies string)`,
+  `import { createPreload as define } from 'electron-trio'; export default define(() => 42)`,
+  `import * as api from 'electron-trio'; export default api.createPreload(() => 42)`,
+  `import * as api from 'electron-trio'; const define = api['createPreload']; const alias = define; export default alias(() => 42)`,
+  `import { createPreload } from 'electron-trio'; const define = createPreload as Factory; export default (define!(() => 42) satisfies string)`,
 ])(
   'recognizes a preload call through its imported symbol: %s',
   async (code) => {
@@ -27,7 +27,7 @@ test('does not recognize preload factories imported from another module', async 
 })
 
 test('recognizes a direct factory without inspecting callback imports', async () => {
-  const code = `import { createPreload } from 'electron-start'; import { setup } from './missing'; export default createPreload(setup)`
+  const code = `import { createPreload } from 'electron-trio'; import { setup } from './missing'; export default createPreload(setup)`
   const analysis = await analyzePreloadEntry(code, '/preload.ts')
   expect(analysis).toBeDefined()
   expect(code.slice(analysis!.callback.start, analysis!.callback.end)).toBe(
@@ -37,18 +37,18 @@ test('recognizes a direct factory without inspecting callback imports', async ()
 
 test('factory helper exports and unrelated functions remain ordinary modules', async () => {
   for (const code of [
-    `export { createPreload as define } from 'electron-start'`,
-    `import * as api from 'electron-start'; export const define = api.createPreload`,
-    `import { createPreload } from 'electron-start'; export default createPreload`,
+    `export { createPreload as define } from 'electron-trio'`,
+    `import * as api from 'electron-trio'; export const define = api.createPreload`,
+    `import { createPreload } from 'electron-trio'; export default createPreload`,
     `const createPreload = callback => callback; export default createPreload(() => {})`,
-    `import type { createPreload } from 'electron-start'; export default createPreload(() => {})`,
-    `import { createIpcInvoke as createPreload } from 'electron-start'; export default createPreload(() => {})`,
+    `import type { createPreload } from 'electron-trio'; export default createPreload(() => {})`,
+    `import { createIpcInvoke as createPreload } from 'electron-trio'; export default createPreload(() => {})`,
   ])
     expect(await analyzePreloadEntry(code, '/helper.ts')).toBeUndefined()
 })
 
 test('preload entry constraints are applied after resolving the imported symbol', async () => {
-  const header = `import * as api from 'electron-start'; const define = api.createPreload;\n`
+  const header = `import * as api from 'electron-trio'; const define = api.createPreload;\n`
   for (const code of [
     `export const preload = define(() => {})`,
     `const preload = define(() => {}); export default preload`,

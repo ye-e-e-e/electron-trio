@@ -31,7 +31,7 @@ const schema = (multiplier = 1) => `
   export const schema = z.number().transform(value => value * ${multiplier})
 `
 const definitions = (channel = 'configured') => `
-  import * as ipc from 'electron-start'
+  import * as ipc from 'electron-trio'
   import { schema } from './schema'
   const factory = ipc['createIpcInvoke']
   const configured = factory(${JSON.stringify(channel)}).inputValidator(schema)
@@ -120,7 +120,7 @@ test('development recognizes a definition before resolving its handler dependenc
   vi.stubGlobal('__definitionLoaded', loaded)
   const root = await fixture(t, {
     'definitions.ts': `
-      import { createIpcInvoke } from 'electron-start'
+      import { createIpcInvoke } from 'electron-trio'
       import { handler } from './missing-handler'
       globalThis.__definitionLoaded()
       export const run = createIpcInvoke('run').handler(handler)

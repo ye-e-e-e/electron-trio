@@ -14,7 +14,7 @@ export function preloadPlugin(): Plugin[] {
   const state: PreloadBuilderState = {}
   return [
     {
-      name: 'electron-start:preload-builder',
+      name: 'electron-trio:preload-builder',
       enforce: 'pre',
       config: {
         order: 'pre',
@@ -42,7 +42,7 @@ export function preloadPlugin(): Plugin[] {
         })
         if (!builder.environments[PRELOAD_ENVIRONMENT])
           throw new Error(
-            'Preload builds require electronStart in the local Vite config',
+            'Preload builds require electronTrio in the local Vite config',
           )
         state.builder = builder
       },

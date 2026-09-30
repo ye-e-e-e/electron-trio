@@ -15,7 +15,7 @@ import {
 
 const source = (
   value: number,
-) => `import { createIpcInvoke } from 'electron-start';
+) => `import { createIpcInvoke } from 'electron-trio';
 import { suffix } from '@main-helper';
 import { identity } from './identity';
 import { existsSync } from 'node:fs';
@@ -27,7 +27,7 @@ export const run = createIpcInvoke('run').handler(() => ({ value: ${value}, coun
 
 test('IPC provider uses application plugins and the application server owns its lifecycle', async (t) => {
   const definition =
-    "import { value } from 'virtual:application-value'; import { createIpcInvoke } from 'electron-start'; export const run = createIpcInvoke('run').handler(() => value)"
+    "import { value } from 'virtual:application-value'; import { createIpcInvoke } from 'electron-trio'; export const run = createIpcInvoke('run').handler(() => value)"
   const root = await fixture(t, { 'definition.ts': definition })
   const key = path.join(root, 'definition.ts')
   const context = new IpcContext({})
@@ -118,7 +118,7 @@ test(
       'helper.ts': 'export const suffix = "first"',
       'real-identity.ts': 'export const identity = import.meta.filename',
       'unrelated.ts':
-        "import { createIpcInvoke } from 'electron-start'; export const unrelated = createIpcInvoke('other').handler(() => 'ok')",
+        "import { createIpcInvoke } from 'electron-trio'; export const unrelated = createIpcInvoke('other').handler(() => 'ok')",
       'undiscovered.ts': 'invalid source @@@',
     })
     await fs.symlink(
@@ -271,7 +271,7 @@ test(
 
 test('module requests validate renderer targets before evaluation, including cache hits', async (t) => {
   const create = (effect: string) =>
-    `import { createIpcInvoke } from 'electron-start'; ${effect}; export const run = createIpcInvoke('private').handler(() => 42)`
+    `import { createIpcInvoke } from 'electron-trio'; ${effect}; export const run = createIpcInvoke('private').handler(() => 42)`
   const source = create('globalThis.__privateEvaluations++')
   const root = await fixture(t, {
     'private.ts': source,

@@ -1,6 +1,6 @@
 # basic example
 
-A minimal React/Electron project using `electron-start/vite` for renderer, main and preload.
+A minimal React/Electron project using `electron-trio/vite` for renderer, main and preload.
 
 From the `examples/basic` directory:
 
@@ -9,4 +9,4 @@ pnpm install
 pnpm dev
 ```
 
-> Before running `pnpm install`, run `pnpm build` from the repository root to build `electron-start`.
+> Before running `pnpm install`, run `pnpm build` from the repository root to build `electron-trio`.

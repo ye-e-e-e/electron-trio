@@ -13,7 +13,7 @@ export async function analyzeIpcModule(
   if (/\.d\.[cm]?ts(?:$|[?#])/.test(file))
     return { analysis: { kind: 'ordinary' } }
   const symbols = new SymbolResolver<IpcValue>(code, file, {
-    targets: [{ source: 'electron-start', name: 'createIpcInvoke' }],
+    targets: [{ source: 'electron-trio', name: 'createIpcInvoke' }],
     resolveCall: analyzeIpcCall,
   })
   const { root } = symbols
@@ -105,7 +105,7 @@ type IpcValue =
 
 const isFactory = (value: ResolvedSymbol<IpcValue> | undefined) =>
   value?.kind === 'import' &&
-  value.source === 'electron-start' &&
+  value.source === 'electron-trio' &&
   value.name === 'createIpcInvoke'
 
 async function analyzeIpcCall(

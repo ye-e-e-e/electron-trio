@@ -1,13 +1,13 @@
 import path from 'node:path'
 import type { Plugin } from 'vite'
 import { MAIN_ENVIRONMENT } from '#/vite/constants'
-import type { ElectronStartViteOptions } from '#/vite/types'
+import type { ElectronTrioViteOptions } from '#/vite/types'
 import { createElectronEnvironment } from './environment'
 import type { ElectronDevEnvironment } from './environment'
 
-export function electronPlugin(options: ElectronStartViteOptions): Plugin {
+export function electronPlugin(options: ElectronTrioViteOptions): Plugin {
   const plugin: Plugin = {
-    name: 'electron-start:electron-main',
+    name: 'electron-trio:electron-main',
     config: {
       order: 'pre',
       handler(config) {

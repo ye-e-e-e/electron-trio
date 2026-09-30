@@ -8,7 +8,7 @@ const RESOLVED_IPC_DISPATCHER_MODULE = '\0' + IPC_DISPATCHER_MODULE
 
 export function ipcDispatcherPlugin(): Plugin {
   return {
-    name: 'electron-start:ipc-dispatcher',
+    name: 'electron-trio:ipc-dispatcher',
     apply: 'serve',
     applyToEnvironment: (environment) => environment.name === MAIN_ENVIRONMENT,
     resolveId: {

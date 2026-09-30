@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { analyzeIpcModule } from '#/compiler/ipc-analyzer'
 
-const header = `import { createIpcInvoke as define } from 'electron-start';\n`
+const header = `import { createIpcInvoke as define } from 'electron-trio';\n`
 const definition = `export const run = define('run').inputValidator(schema).handler(fn)`
 const parse = async (code: string) => {
   const { analysis } = await analyzeIpcModule(code, 'test.ipc.ts')
@@ -87,8 +87,8 @@ test('ordinary modules, barrels and private IPC definitions remain ordinary', as
     `${header} export const wrapper = (define: Function) => define('shadow').handler(fn)`,
     `const createIpcInvoke = () => ({handler: () => 1}); export const ordinary = createIpcInvoke().handler()`,
     `const define = () => {}; ${definition}`,
-    `import type { createIpcInvoke as define } from 'electron-start'; ${definition}`,
-    `import type { createIpcInvoke as define } from 'electron-start'; export type Builder = typeof define`,
+    `import type { createIpcInvoke as define } from 'electron-trio'; ${definition}`,
+    `import type { createIpcInvoke as define } from 'electron-trio'; export type Builder = typeof define`,
   ])
     expect(
       (await analyzeIpcModule(code, '/ordinary.ts')).analysis,

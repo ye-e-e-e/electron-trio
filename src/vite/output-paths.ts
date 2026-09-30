@@ -11,7 +11,7 @@ export function renderOutputPaths(
   paths: ReadonlyMap<string, string>,
 ) {
   const output = new MagicString(code)
-  let helper = '__electron_start_fileURLToPath'
+  let helper = '__electron_trio_fileURLToPath'
   while (code.includes(helper)) helper += '_'
   let used = false
   for (const [marker, file] of paths) {

@@ -14,12 +14,12 @@ test(
   async (t) => {
     const root = await fixture(t, {
       'package.json': '{"name":"isolated-consumer","type":"module"}',
-      'definition.ts': `import { createIpcInvoke } from 'electron-start'; export const run = createIpcInvoke('packed').handler(() => 'PACKED_IMPLEMENTATION')`,
+      'definition.ts': `import { createIpcInvoke } from 'electron-trio'; export const run = createIpcInvoke('packed').handler(() => 'PACKED_IMPLEMENTATION')`,
       'renderer.ts': `export { run } from './definition'`,
       'main.ts': `export { run } from './definition'; export { default as preload } from './preload'`,
-      'bundled-main.ts': `export { loadWindow } from 'electron-start'`,
+      'bundled-main.ts': `export { loadWindow } from 'electron-trio'`,
       'index.html': '<title>Packed renderer</title>',
-      'preload.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => {})`,
+      'preload.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => {})`,
     })
     const command = promisify(execFile)
     const archive = path.join(root, 'package.tgz')
@@ -27,7 +27,7 @@ test(
       cwd: path.resolve(import.meta.dirname, '../..'),
       env: { ...process.env, npm_config_ignore_scripts: 'true', HUSKY: '0' },
     })
-    const installed = path.join(root, 'node_modules/electron-start')
+    const installed = path.join(root, 'node_modules/electron-trio')
     await fs.mkdir(installed, { recursive: true })
     await command('tar', [
       '-xzf',
@@ -47,32 +47,30 @@ test(
     ])
     for (const subpath of ['.', './vite']) {
       const specifier =
-        subpath === '.'
-          ? 'electron-start'
-          : 'electron-start/' + subpath.slice(2)
+        subpath === '.' ? 'electron-trio' : 'electron-trio/' + subpath.slice(2)
       const entry = consumerRequire.resolve(specifier)
       expect(entry.startsWith(installed + path.sep)).toBe(true)
       expect(entry).toBe(path.resolve(installed, metadata.exports[subpath]))
       await fs.access(entry.replace(/\.mjs$/, '.d.mts'))
     }
     for (const specifier of [
-      'electron-start/dev',
-      'electron-start/electron',
-      'electron-start/bootstrap',
+      'electron-trio/dev',
+      'electron-trio/electron',
+      'electron-trio/bootstrap',
     ]) {
       expect(() => consumerRequire.resolve(specifier)).toThrow(
         expect.objectContaining({ code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }),
       )
     }
     await expect(fs.access(path.join(installed, 'src'))).rejects.toThrow()
-    const { electronStart } = await import(
-      pathToFileURL(consumerRequire.resolve('electron-start/vite')).href
+    const { electronTrio } = await import(
+      pathToFileURL(consumerRequire.resolve('electron-trio/vite')).href
     )
     const builder = await createBuilder({
       root,
       configFile: false,
       logLevel: 'silent',
-      plugins: [electronStart({ entry: 'main.ts' })],
+      plugins: [electronTrio({ entry: 'main.ts' })],
       build: {
         minify: false,
         lib: {
@@ -85,7 +83,7 @@ test(
         electron_main: {
           build: {
             rolldownOptions: {
-              external: ['electron', 'electron-start'],
+              external: ['electron', 'electron-trio'],
               output: { format: 'cjs', entryFileNames: 'main.cjs' },
             },
           },
@@ -110,16 +108,16 @@ test(
     )
     expect(renderer + preload).not.toContain('PACKED_IMPLEMENTATION')
     expect(main + preload + renderer).not.toMatch(
-      /ModuleRunner|WebSocket|virtual:electron-start:ipc-dispatcher/,
+      /ModuleRunner|WebSocket|virtual:electron-trio:ipc-dispatcher/,
     )
-    expect(main).toMatch(/require\(["']electron-start["']\)/)
+    expect(main).toMatch(/require\(["']electron-trio["']\)/)
     const harness = electronHarness()
     const api = evaluate(
       main,
       harness.electron,
       { __dirname: path.join(root, 'dist/main') },
       {
-        'electron-start': consumerRequire('electron-start'),
+        'electron-trio': consumerRequire('electron-trio'),
         'node:path': path,
       },
     )
@@ -135,7 +133,7 @@ test(
       root,
       configFile: false,
       logLevel: 'silent',
-      plugins: [electronStart({ entry: 'bundled-main.ts' })],
+      plugins: [electronTrio({ entry: 'bundled-main.ts' })],
       build: { outDir: 'bundled-output' },
       environments: {
         electron_main: {
@@ -167,7 +165,7 @@ test(
     )
     const boot = await fs.readFile(
       path.join(
-        path.dirname(consumerRequire.resolve('electron-start/package.json')),
+        path.dirname(consumerRequire.resolve('electron-trio/package.json')),
         'dist/bootstrap.mjs',
       ),
       'utf8',

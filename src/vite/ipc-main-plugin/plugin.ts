@@ -13,7 +13,7 @@ import { ipcDefinitionId } from '#/vite/ipc-plugin/module-id'
 export function ipcMainPlugin(context: IpcContext): Plugin {
   const signatures = new Map<string, string>()
   return {
-    name: 'electron-start:ipc-main',
+    name: 'electron-trio:ipc-main',
     apply: 'serve',
     applyToEnvironment: (environment) => environment.name === MAIN_ENVIRONMENT,
     enforce: 'pre',

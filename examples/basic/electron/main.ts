@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron'
-import { loadWindow } from 'electron-start'
+import { loadWindow } from 'electron-trio'
 import preload from './preload'
 import { windowTitle } from './window-title'
 

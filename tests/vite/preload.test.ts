@@ -28,8 +28,8 @@ const configImports = `
 test('preload imports build lazily, share a watcher and execute only in preload', async (t) => {
   const root = await fixture(t, {
     'main.ts': `import preload from './preload'; export { preload }; export { default as again } from './preload'`,
-    'preload.ts': `import { createPreload as define } from 'electron-start'; import { contextBridge } from 'electron'; import { value } from './value'; export default define(() => { contextBridge.exposeInMainWorld('value', value) })`,
-    'unused.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => { throw new Error('unused') })`,
+    'preload.ts': `import { createPreload as define } from 'electron-trio'; import { contextBridge } from 'electron'; import { value } from './value'; export default define(() => { contextBridge.exposeInMainWorld('value', value) })`,
+    'unused.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => { throw new Error('unused') })`,
     'value.ts': `export const value = 'initial'`,
     'vite.config.ts': `${configImports}
       export default {
@@ -95,7 +95,7 @@ test('preload imports build lazily, share a watcher and execute only in preload'
   hotSend.mockClear()
   await fs.writeFile(
     path.join(root, 'preload.ts'),
-    `import { createPreload } from 'electron-start'; import { contextBridge } from 'electron'; import { value } from './value'; export default createPreload(() => contextBridge.exposeInMainWorld('value', value + ':entry'))`,
+    `import { createPreload } from 'electron-trio'; import { contextBridge } from 'electron'; import { value } from './value'; export default createPreload(() => contextBridge.exposeInMainWorld('value', value + ':entry'))`,
   )
   await until(
     async () =>
@@ -131,7 +131,7 @@ test(
   { timeout: 30000 },
   async (t) => {
     const source = (label: string) => `
-    import { createPreload } from 'electron-start'
+    import { createPreload } from 'electron-trio'
     import { contextBridge } from 'electron'
     import { value } from './value'
     import { shared } from '../shared'
@@ -150,7 +150,7 @@ test(
       'vite.config.ts': `
       import fs from 'node:fs'
       import { randomUUID } from 'node:crypto'
-      import { electronStart } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../src/vite.ts'))}
+      import { electronTrio } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../src/vite.ts'))}
       export default ({ command, mode }) => {
         const instance = randomUUID()
         const environments = new WeakMap()
@@ -162,7 +162,7 @@ test(
         record('./configs.jsonl', { command, mode, instance })
         return {
           logLevel: 'silent',
-          plugins: [electronStart({ entry: 'main.ts', bridgeName: 'desktop' }), {
+          plugins: [electronTrio({ entry: 'main.ts', bridgeName: 'desktop' }), {
             name: 'test:preload-environments',
             applyToEnvironment: environment => environment.name === 'electron_preload',
             transform: { order: 'pre', async handler(_code, id) {
@@ -370,8 +370,8 @@ test.for(['es', 'cjs'] as const)(
     const root = await fixture(t, {
       'index.html': '',
       'main.ts': `#!/usr/bin/env node\nexport { default as first } from './one/preload'; export { default as second } from './two/preload'`,
-      'one/preload.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => { globalThis.first = true })`,
-      'two/preload.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => { globalThis.second = true })`,
+      'one/preload.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => { globalThis.first = true })`,
+      'two/preload.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => { globalThis.second = true })`,
     })
     const extension = format === 'es' ? 'mjs' : 'cjs'
     const builder = await createBuilder({
@@ -392,7 +392,7 @@ test.for(['es', 'cjs'] as const)(
         electron_preload: {
           build: {
             outDir: 'output/preload space',
-            rolldownOptions: { treeshake: false, external: ['electron-start'] },
+            rolldownOptions: { treeshake: false, external: ['electron-trio'] },
           },
         },
       },
@@ -431,8 +431,8 @@ test.for(['development', 'production'] as const)(
     const root = await fixture(t, {
       'index.html': '',
       'main.ts': `export { default as namespace } from './namespace'; export { default as alias } from './alias'`,
-      'namespace.ts': `import * as api from 'electron-start'; const define = api['createPreload']; export default define(() => { globalThis.value = 'namespace' })`,
-      'alias.ts': `import { createPreload as factory } from 'electron-start'; import { value } from './value'; import './effects'; const define = factory; export default define(() => { globalThis.value = value })`,
+      'namespace.ts': `import * as api from 'electron-trio'; const define = api['createPreload']; export default define(() => { globalThis.value = 'namespace' })`,
+      'alias.ts': `import { createPreload as factory } from 'electron-trio'; import { value } from './value'; import './effects'; const define = factory; export default define(() => { globalThis.value = value })`,
       'effects.ts': `globalThis.helperLoads = (globalThis.helperLoads ?? 0) + 1`,
       'value.ts': `export const value = 'alias'`,
       'vite.config.ts': `${configImports}
@@ -441,7 +441,7 @@ test.for(['development', 'production'] as const)(
         plugins: [electronPlugin(${JSON.stringify(options)}), preloadPlugin()],
         environments: {
           electron_main: { build: { rolldownOptions: { output: { format: 'cjs', entryFileNames: 'main.cjs' } } } },
-          electron_preload: { build: { rolldownOptions: { external: ['electron-start'] }, watch: ${JSON.stringify(fixtureWatch)} } },
+          electron_preload: { build: { rolldownOptions: { external: ['electron-trio'] }, watch: ${JSON.stringify(fixtureWatch)} } },
         },
       }`,
     })
@@ -461,7 +461,7 @@ test.for(['development', 'production'] as const)(
     }
     const read = async (file: string) => {
       const code = await fs.readFile(file, 'utf8')
-      expect(code).not.toMatch(/require\(["']electron-start["']\)/)
+      expect(code).not.toMatch(/require\(["']electron-trio["']\)/)
       const globals: Record<string, unknown> = {}
       evaluate(code, {}, { globalThis: globals })
       return globals
@@ -479,7 +479,7 @@ test.for(['development', 'production'] as const)(
       )
       await fs.writeFile(
         path.join(root, 'alias.ts'),
-        `import * as api from 'electron-start'; import { value } from './value'; import './effects'; const define = api.createPreload; export default define(() => { globalThis.value = value + ':local' })`,
+        `import * as api from 'electron-trio'; import { value } from './value'; import './effects'; const define = api.createPreload; export default define(() => { globalThis.value = value + ':local' })`,
       )
       await until(
         async () => (await read(paths.alias)).value === 'updated:local',
@@ -492,7 +492,7 @@ test.for(['development', 'production'] as const)(
 test('a failed preload build releases its watcher and can be retried after repair', async (t) => {
   const root = await fixture(t, {
     'main.ts': `export { default } from './preload'`,
-    'preload.ts': `import { createPreload } from 'electron-start'; import { value } from './value'; export default createPreload(() => { globalThis.value = value })`,
+    'preload.ts': `import { createPreload } from 'electron-trio'; import { value } from './value'; export default createPreload(() => { globalThis.value = value })`,
     'value.ts': `export const value = @invalid`,
     'vite.config.ts': `${configImports}
       export default {
@@ -528,8 +528,8 @@ test('different preload entries cannot overwrite the same configured output', as
   const root = await fixture(t, {
     'index.html': '',
     'main.ts': `export { default as first } from './first'; export { default as second } from './second'`,
-    'first.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => {})`,
-    'second.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => {})`,
+    'first.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => {})`,
+    'second.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => {})`,
   })
   const builder = await createBuilder({
     root,
@@ -550,7 +550,7 @@ test('different preload entries cannot overwrite the same configured output', as
 test.for(['development', 'production'] as const)(
   'preload discovery and compilation use preceding transforms in %s',
   async (mode, t) => {
-    const generated = `import { createPreload } from 'electron-start'; import { value } from './value'; export default createPreload(() => { globalThis.value = value })`
+    const generated = `import { createPreload } from 'electron-trio'; import { value } from './value'; export default createPreload(() => { globalThis.value = value })`
     const root = await fixture(t, {
       'index.html': '',
       'main.ts': `export { default as preload } from './preload'`,
@@ -606,7 +606,7 @@ test.for(['development', 'production'] as const)(
   async (mode, t) => {
     const root = await fixture(t, {
       'index.html': '',
-      'main.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => {})`,
+      'main.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => {})`,
       'vite.config.ts': `${configImports}
         export default {
           logLevel: 'silent',

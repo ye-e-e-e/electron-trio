@@ -4,7 +4,7 @@ import type { IpcContext } from '#/vite/ipc-plugin/context'
 
 export function ipcProtectionPlugin(context: IpcContext): Plugin {
   return {
-    name: 'electron-start:ipc-protection',
+    name: 'electron-trio:ipc-protection',
     enforce: 'pre',
     applyToEnvironment: (environment) =>
       environment.name === PRELOAD_ENVIRONMENT,

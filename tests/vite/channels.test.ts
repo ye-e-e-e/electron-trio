@@ -41,7 +41,7 @@ async function fixture(t: TestContext, definitionChannels = channels) {
   await fs.mkdir(path.join(root, 'src/ipc'), { recursive: true })
   await fs.writeFile(
     path.join(root, 'src/ipc/channels.ts'),
-    `import { createIpcInvoke } from 'electron-start'; import { z } from 'zod';\n` +
+    `import { createIpcInvoke } from 'electron-trio'; import { z } from 'zod';\n` +
       definitionChannels
         .map(
           (channel, i) =>
@@ -106,7 +106,7 @@ test('development proxies use stable module targets regardless of channel litera
     (match) => match[1],
   )
   expect(urls).toHaveLength(1)
-  expect(urls[0]).toContain('virtual:electron-start:ipc-renderer')
+  expect(urls[0]).toContain('virtual:electron-trio:ipc-renderer')
   const runtime = await request(server, urls[0])
   expect(runtime.status).toBe(200)
   const createDevRendererInvoker = vm.runInNewContext(

@@ -116,7 +116,7 @@ type Bridge = Record<string, (input: unknown) => unknown>
 // Nested Vite projects resolve fixture imports to source without a library build.
 export const sourceAliases = [
   {
-    find: /^electron-start$/,
+    find: /^electron-trio$/,
     replacement: path.resolve(import.meta.dirname, '../src/index.ts'),
   },
 ]
@@ -149,9 +149,9 @@ export async function writeFiles(root: string, files: Record<string, string>) {
 }
 
 export const ipcSource = (body: string) =>
-  `import { z } from 'zod'; import { createIpcInvoke } from 'electron-start';\n${body}`
+  `import { z } from 'zod'; import { createIpcInvoke } from 'electron-trio';\n${body}`
 export const definition = (channel: string) =>
-  `import { createIpcInvoke } from 'electron-start'; export const run = createIpcInvoke(${JSON.stringify(channel)}).handler(() => 1)`
+  `import { createIpcInvoke } from 'electron-trio'; export const run = createIpcInvoke(${JSON.stringify(channel)}).handler(() => 1)`
 
 export async function bundle(
   root: string,

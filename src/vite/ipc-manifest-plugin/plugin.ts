@@ -13,7 +13,7 @@ export function ipcManifestPlugin(context: IpcContext): Plugin {
     (definitions) => context.manifest.publish(definitions),
   )
   return {
-    name: 'electron-start:ipc-manifest',
+    name: 'electron-trio:ipc-manifest',
     apply: 'build',
     enforce: 'pre',
     applyToEnvironment: (environment) => environment.name === 'client',

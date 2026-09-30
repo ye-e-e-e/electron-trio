@@ -4,7 +4,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createBuilder } from 'vite'
 import { expect, test, vi } from 'vitest'
-import { electronStart } from '#/vite'
+import { electronTrio } from '#/vite'
 import { fixture, sourceAliases } from '../helpers'
 
 test.for([
@@ -24,7 +24,7 @@ test.for([
     })
     const root = await fixture(t, {
       'index.html': '<title>Renderer</title>',
-      'main.ts': `export { loadWindow } from 'electron-start'`,
+      'main.ts': `export { loadWindow } from 'electron-trio'`,
       'node_modules/electron/package.json': JSON.stringify({
         name: 'electron',
         main: 'index.cjs',
@@ -38,7 +38,7 @@ test.for([
       configFile: false,
       logLevel: 'silent',
       resolve: { alias: sourceAliases },
-      plugins: [electronStart({ entry: 'main.ts' })],
+      plugins: [electronTrio({ entry: 'main.ts' })],
       build: { outDir },
       environments: {
         ...(client !== `${outDir}/client`

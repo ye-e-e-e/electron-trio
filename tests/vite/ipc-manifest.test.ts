@@ -2,13 +2,13 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createBuilder } from 'vite'
 import { expect, test } from 'vitest'
-import { electronStart } from '#/vite'
+import { electronTrio } from '#/vite'
 import { electronHarness, evaluate, fixture, sourceAliases } from '../helpers'
 
 test('production query imports share one manifest entry and one main implementation', async (t) => {
   const root = await fixture(t, {
     'renderer.ts': `export { run as desktop } from './functions.ts?variant=desktop'; export { run as mobile } from './functions.ts?variant=mobile'`,
-    'functions.ts': `import { createIpcInvoke } from 'electron-start'; let calls = 0; export const run = createIpcInvoke('run').handler(() => ++calls)`,
+    'functions.ts': `import { createIpcInvoke } from 'electron-trio'; let calls = 0; export const run = createIpcInvoke('run').handler(() => ++calls)`,
     'main.ts': '',
   })
   const builder = await createBuilder({
@@ -16,7 +16,7 @@ test('production query imports share one manifest entry and one main implementat
     configFile: false,
     logLevel: 'silent',
     resolve: { alias: sourceAliases },
-    plugins: [electronStart({ entry: 'main.ts' })],
+    plugins: [electronTrio({ entry: 'main.ts' })],
     environments: {
       client: {
         build: {

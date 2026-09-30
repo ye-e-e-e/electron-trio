@@ -62,7 +62,7 @@ test('ordinary renderer source updates preserve Vite HMR', async (t) => {
 
 test('removing a renderer import retains encountered definitions for the development session', async (t) => {
   const definition =
-    "import { createIpcInvoke } from 'electron-start'; export const run = createIpcInvoke('private').handler(() => 1)"
+    "import { createIpcInvoke } from 'electron-trio'; export const run = createIpcInvoke('private').handler(() => 1)"
   const root = await fixture(t, {
     'definition.ts': definition,
     'entry.ts':
@@ -136,7 +136,7 @@ test('removing a renderer import retains encountered definitions for the develop
 
 test('creating a previously missing implementation dependency recovers a failed definition', async (t) => {
   const definition = (helper: string) =>
-    `import { value } from './${helper}'; import { createIpcInvoke } from 'electron-start'; export const run = createIpcInvoke('run').handler(() => value)`
+    `import { value } from './${helper}'; import { createIpcInvoke } from 'electron-trio'; export const run = createIpcInvoke('run').handler(() => value)`
   const root = await fixture(t, {
     'definition.ts': definition('helper'),
     'helper.ts': 'export const value = 1',
@@ -202,7 +202,7 @@ test.for(['', '?variant=desktop'])(
   'definition HMR skips implementation-only edits and propagates contract changes and repairs: %s',
   async (query, t) => {
     const source = (channel: string, value = 1, name = 'run') =>
-      `import { createIpcInvoke } from 'electron-start'; export const ${name} = createIpcInvoke('${channel}').handler(() => ${value})`
+      `import { createIpcInvoke } from 'electron-trio'; export const ${name} = createIpcInvoke('${channel}').handler(() => ${value})`
     const root = await fixture(t, {
       'definition.ts': source('first'),
       'entry.ts': `import { run } from "./definition${query}"; globalThis.run = run; import.meta.hot.accept("./definition${query}", () => {})`,

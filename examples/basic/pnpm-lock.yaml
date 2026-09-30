@@ -11,7 +11,7 @@ importers:
       electron:
         specifier: ^44.0.0
         version: 44.3.0
-      electron-start:
+      electron-trio:
         specifier: file:../..
         version: file:../..(electron@44.3.0)(vite@8.2.2(@types/node@20.19.43))
       react:
@@ -327,7 +327,7 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
-  electron-start@file:../..:
+  electron-trio@file:../..:
     resolution: {directory: ../.., type: directory}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
@@ -714,7 +714,7 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  electron-start@file:../..(electron@44.3.0)(vite@8.2.2(@types/node@20.19.43)):
+  electron-trio@file:../..(electron@44.3.0)(vite@8.2.2(@types/node@20.19.43)):
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       '@standard-schema/spec': 1.1.0

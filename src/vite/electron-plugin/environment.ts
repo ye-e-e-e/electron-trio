@@ -13,7 +13,7 @@ export function createElectronEnvironment(
     {
       resolve: {
         builtins: [...builtinModules, /^node:/, 'electron'],
-        noExternal: ['electron-start'],
+        noExternal: ['electron-trio'],
       },
       build: {
         outDir: options.outDir,

@@ -7,7 +7,7 @@ import { preloadModuleSideEffects } from './module-side-effects'
 /** Validate preload entries and compile the createPreload macro. */
 export function preloadEntryPlugin(): Plugin {
   return {
-    name: 'electron-start:preload-entry',
+    name: 'electron-trio:preload-entry',
     enforce: 'pre',
     applyToEnvironment: (environment) =>
       environment.name === PRELOAD_ENVIRONMENT,

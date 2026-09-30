@@ -15,23 +15,23 @@ test(
       'index.html': '<script type="module" src="/renderer.ts"></script>',
       'renderer.ts': `import { counter } from './functions'; globalThis.counter = counter`,
       'state.ts': 'export const state = { count: 0 }',
-      'functions.ts': `import { createIpcInvoke } from 'electron-start'; import { state } from './state'; export const counter = createIpcInvoke('count').handler(({event}) => ({ count: ++state.count, version: 1, event: !!event }))`,
+      'functions.ts': `import { createIpcInvoke } from 'electron-trio'; import { state } from './state'; export const counter = createIpcInvoke('count').handler(({event}) => ({ count: ++state.count, version: 1, event: !!event }))`,
       'message.ts': `export const message = 'first'`,
       'preload-value.ts': `export const version = 1`,
-      'preload.ts': `import { createPreload } from 'electron-start'; import { contextBridge } from 'electron'; import { version } from './preload-value'; import 'virtual:test-preload'; export default createPreload(() => contextBridge.exposeInMainWorld('preloadVersion', version))`,
+      'preload.ts': `import { createPreload } from 'electron-trio'; import { contextBridge } from 'electron'; import { version } from './preload-value'; import 'virtual:test-preload'; export default createPreload(() => contextBridge.exposeInMainWorld('preloadVersion', version))`,
       'vite.config.ts': `
-      import { electronStart } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../dist/vite.mjs'))}
+      import { electronTrio } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../dist/vite.mjs'))}
       export default {
         logLevel: 'warn',
-        resolve: { alias: [{ find: /^electron-start$/, replacement: ${JSON.stringify(sourceAliases[0].replacement)} }] },
-        plugins: [electronStart({ entry: 'main.ts' }), {
+        resolve: { alias: [{ find: /^electron-trio$/, replacement: ${JSON.stringify(sourceAliases[0].replacement)} }] },
+        plugins: [electronTrio({ entry: 'main.ts' }), {
           name: 'test:preload-plugin', applyToEnvironment: environment => environment.name === 'electron_preload',
           resolveId(id) { if (id === 'virtual:test-preload') return '\\0test-preload' },
           load(id) { if (id === '\\0test-preload') return 'console.log("preload plugin applied")' },
         }],
       }`,
       'main.ts': `import { app, BrowserWindow } from 'electron'
-      import { loadWindow } from 'electron-start'
+      import { loadWindow } from 'electron-trio'
       import preload from './preload'
       import { counter } from './functions'
       import * as calls from './functions'
@@ -157,7 +157,7 @@ test(
     })
     await fs.writeFile(
       path.join(root, 'preload.ts'),
-      `import { createPreload } from 'electron-start'; import { contextBridge } from 'electron'; export default createPreload(() => contextBridge.exposeInMainWorld('preloadVersion', 3))`,
+      `import { createPreload } from 'electron-trio'; import { contextBridge } from 'electron'; export default createPreload(() => contextBridge.exposeInMainWorld('preloadVersion', 3))`,
     )
     await until(async () => {
       try {

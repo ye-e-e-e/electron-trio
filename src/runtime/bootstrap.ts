@@ -16,7 +16,7 @@ process.once('disconnect', () => app.exit())
 
 try {
   const config: ElectronBootstrapConfig = JSON.parse(
-    process.env.ELECTRON_START_RUNNER!,
+    process.env.ELECTRON_TRIO_RUNNER!,
   )
   // Electron's CLI uses this runtime method, but it is absent from its public typings.
   const electronApp = app as typeof app & {

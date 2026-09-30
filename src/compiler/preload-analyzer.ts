@@ -6,12 +6,12 @@ import { SymbolResolver } from './symbol-resolver'
 export async function analyzePreloadEntry(code: string, file: string) {
   if (/\.d\.[cm]?ts(?:$|[?#])/.test(file)) return
   const symbols = new SymbolResolver<ESTree.CallExpression>(code, file, {
-    targets: [{ source: 'electron-start', name: 'createPreload' }],
+    targets: [{ source: 'electron-trio', name: 'createPreload' }],
     async resolveCall(call, { resolve }) {
       const factory = await resolve(call.callee)
       if (
         factory?.kind === 'import' &&
-        factory.source === 'electron-start' &&
+        factory.source === 'electron-trio' &&
         factory.name === 'createPreload'
       ) {
         return call
@@ -82,7 +82,7 @@ export async function analyzePreloadEntry(code: string, file: string) {
     callee.type === 'Identifier' ? root.bindings.get(callee.name) : undefined
   // Keep import nodes to remove direct createPreload imports even without tree shaking.
   const directImport =
-    binding && 'source' in binding && binding.source === 'electron-start'
+    binding && 'source' in binding && binding.source === 'electron-trio'
       ? binding
       : undefined
   return {

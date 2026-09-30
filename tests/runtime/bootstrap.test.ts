@@ -86,7 +86,7 @@ function setup(t: TestContext) {
     }
     return { run }
   })
-  vi.stubEnv('ELECTRON_START_RUNNER', JSON.stringify({ root, entry }))
+  vi.stubEnv('ELECTRON_TRIO_RUNNER', JSON.stringify({ root, entry }))
   const messageListeners = new Set(process.listeners('message'))
   const disconnectListeners = new Set(process.listeners('disconnect'))
   t.onTestFinished(() => {
@@ -157,7 +157,7 @@ test.for(['config', 'metadata', 'runner', 'main'] as const)(
   async (phase, t) => {
     const { exited, onMain } = setup(t)
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-    if (phase === 'config') vi.stubEnv('ELECTRON_START_RUNNER', '{')
+    if (phase === 'config') vi.stubEnv('ELECTRON_TRIO_RUNNER', '{')
     if (phase === 'metadata') mocks.readMetadata.mockResolvedValueOnce('{')
     const fail = () => {
       throw new Error('startup failed')

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createBuilder, createServer, resolveConfig } from 'vite'
 import { expect, test, vi } from 'vitest'
-import { electronStart } from '#/vite'
+import { electronTrio } from '#/vite'
 import { DEV_CHANNEL } from '#/vite/ipc-entry-plugin/constants'
 import {
   evaluate,
@@ -22,7 +22,7 @@ test('one plugin configures Electron environments and preserves environment over
       configFile: false,
       root,
       logLevel: 'silent',
-      plugins: [electronStart(options)],
+      plugins: [electronTrio(options)],
       environments: {
         electron_main: { define: { __MAIN__: '42' } },
         electron_preload: {
@@ -62,20 +62,20 @@ test('server setup creates a preload builder from local config with development 
   const root = await fixture(t, {
     'main.ts': '',
     'paths.ts': `export { default } from './preload'`,
-    'preload.ts': `import { createPreload } from 'electron-start'; import { contextBridge } from 'electron'; import { value } from '@value'; import { prefix } from 'virtual:test-file-preload'; export default createPreload(() => contextBridge.exposeInMainWorld('value', prefix + value + __SUFFIX__))`,
+    'preload.ts': `import { createPreload } from 'electron-trio'; import { contextBridge } from 'electron'; import { value } from '@value'; import { prefix } from 'virtual:test-file-preload'; export default createPreload(() => contextBridge.exposeInMainWorld('value', prefix + value + __SUFFIX__))`,
     'value.ts': `export const value: string = 'first'`,
     'vite.config.ts': `throw new Error('The selected config file must be used')`,
     'electron.config.ts': `
       import fs from 'node:fs'
       import { randomUUID } from 'node:crypto'
       import { fileURLToPath } from 'node:url'
-      import { electronStart } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../src/vite.ts'))}
+      import { electronTrio } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../src/vite.ts'))}
       export default ({ command, mode }) => {
         const instance = randomUUID()
         fs.appendFileSync(new URL('./configs.jsonl', import.meta.url), JSON.stringify({ command, mode, instance }) + '\\n')
         return {
           logLevel: 'silent',
-          plugins: [electronStart({ entry: 'main.ts', bridgeName: 'desktop' }), {
+          plugins: [electronTrio({ entry: 'main.ts', bridgeName: 'desktop' }), {
             name: 'test:file-preload-build', apply: 'build',
             applyToEnvironment: environment => environment.name === 'electron_preload',
             resolveId(id) { if (id === 'virtual:test-file-preload') return '\\0test-file-preload' },
@@ -173,10 +173,10 @@ test('production reuses the application builder and manifest across separate pre
   const root = await fixture(t, {
     'index.html': '<script type="module" src="/renderer.ts"></script>',
     'renderer.ts': `import { run } from './functions'; console.log(run())`,
-    'functions.ts': `import { createIpcInvoke } from 'electron-start'; export const run = createIpcInvoke('first').handler(() => 42)`,
+    'functions.ts': `import { createIpcInvoke } from 'electron-trio'; export const run = createIpcInvoke('first').handler(() => 42)`,
     'main.ts': `export { default as first } from './first'; export { default as second } from './second'`,
-    'first.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => { globalThis.entry = 'first' })`,
-    'second.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => { globalThis.entry = 'second' })`,
+    'first.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => { globalThis.entry = 'first' })`,
+    'second.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => { globalThis.entry = 'second' })`,
   })
   const modes = new Map<string, string>()
   const buildOrder: string[] = []
@@ -203,7 +203,7 @@ test('production reuses the application builder and manifest across separate pre
       },
     },
     plugins: [
-      electronStart(options),
+      electronTrio(options),
       {
         name: 'test:outputs',
         configResolved,
@@ -266,9 +266,9 @@ test('an invalid discovered preload rejects its main import', async (t) => {
   const root = await fixture(t, {
     'main.ts': '',
     'paths.ts': `export { default } from './preload'`,
-    'preload.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => { invalid syntax @@@ })`,
-    'vite.config.ts': `import { electronStart } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../src/vite.ts'))};
-      export default { logLevel: 'silent', plugins: [electronStart(${JSON.stringify(options)})] }`,
+    'preload.ts': `import { createPreload } from 'electron-trio'; export default createPreload(() => { invalid syntax @@@ })`,
+    'vite.config.ts': `import { electronTrio } from ${JSON.stringify(path.resolve(import.meta.dirname, '../../src/vite.ts'))};
+      export default { logLevel: 'silent', plugins: [electronTrio(${JSON.stringify(options)})] }`,
   })
   const server = await createServer({
     root,

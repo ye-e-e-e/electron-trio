@@ -2,7 +2,7 @@ import { expect, test, vi } from 'vitest'
 import { IpcRegistry } from '#/vite/ipc-plugin/ipc-registry'
 
 const source = (channel: string, name = 'run') =>
-  `import { createIpcInvoke } from 'electron-start'\nexport const ${name} = createIpcInvoke(${JSON.stringify(channel)}).handler(() => 1)`
+  `import { createIpcInvoke } from 'electron-trio'\nexport const ${name} = createIpcInvoke(${JSON.stringify(channel)}).handler(() => 1)`
 
 test('analysis does not register definitions before a caller encounters them', async () => {
   const registry = new IpcRegistry()

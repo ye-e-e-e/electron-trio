@@ -3,24 +3,24 @@ import type {
   BrowserWindowConstructorOptions,
   IpcMainInvokeEvent,
 } from 'electron'
-import type { ElectronStartViteOptions } from 'electron-start/vite'
+import type { ElectronTrioViteOptions } from 'electron-trio/vite'
 import type { PluginOption } from 'vite'
 import { z } from 'zod'
 import { createIpcInvoke, createPreload, loadWindow } from '#/index'
 import type { IpcInvokeFn } from '#/index'
-import { electronStart } from '#/vite'
+import { electronTrio } from '#/vite'
 
 const windowLoader: (window: BrowserWindow) => Promise<void> = loadWindow
 void windowLoader
 
-const options: ElectronStartViteOptions = { entry: 'main.ts' }
-const electronPlugins = electronStart(options)
+const options: ElectronTrioViteOptions = { entry: 'main.ts' }
+const electronPlugins = electronTrio(options)
 const plugins: PluginOption = electronPlugins
 void plugins
 // @ts-expect-error A main entry is required.
-electronStart()
+electronTrio()
 // @ts-expect-error Preload entries are discovered from main imports.
-electronStart({ entry: 'main.ts', preload: { entry: 'preload.ts' } })
+electronTrio({ entry: 'main.ts', preload: { entry: 'preload.ts' } })
 // @ts-expect-error The returned PluginOption is not a factory.
 electronPlugins()
 
@@ -94,6 +94,6 @@ const empty = createIpcInvoke('empty')
 const emptyResult: Promise<number> = empty()
 void emptyResult
 
-electronStart({ entry: 'main.ts', bridgeName: '__desktop' })
+electronTrio({ entry: 'main.ts', bridgeName: '__desktop' })
 // @ts-expect-error A channel is required and is never generated automatically.
 createIpcInvoke()

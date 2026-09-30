@@ -15,7 +15,7 @@ export default function App() {
 
   return (
     <main>
-      <h1>electron-start</h1>
+      <h1>electron-trio</h1>
       <p>Application version: {version || 'loading...'}</p>
       {error && <p role="alert">{error}</p>}
     </main>

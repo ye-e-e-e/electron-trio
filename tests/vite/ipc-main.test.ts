@@ -21,7 +21,7 @@ async function loadMain(
 ) {
   const root = await fixture(t, {
     'definitions.ts':
-      "import { createIpcInvoke } from 'electron-start'; export const old = createIpcInvoke('old').handler(() => 'not bundled')",
+      "import { createIpcInvoke } from 'electron-trio'; export const old = createIpcInvoke('old').handler(() => 'not bundled')",
     'ordinary.ts': 'export const ordinary = 42',
     'barrel.ts': 'export * from "./definitions"; export * from "./ordinary"',
     'main.ts': entry,
@@ -90,7 +90,7 @@ test('IPC exports can use dispatcher helper names without shadowing the generate
   const names = ['getDispatcher', '__getDispatcher', '__getDispatcher_']
   const app = await loadMain(t, 'export * from "./definitions"', {
     'definitions.ts':
-      `import { createIpcInvoke } from 'electron-start';\n` +
+      `import { createIpcInvoke } from 'electron-trio';\n` +
       names
         .map(
           (name) =>
@@ -152,7 +152,7 @@ test.for(['', '?variant=desktop'])(
         transform(code, id) {
           if (id.split('?')[0] === path.join(root, 'definitions.ts')) {
             return (
-              `import { createIpcInvoke } from 'electron-start'; import { z } from 'zod';\n` +
+              `import { createIpcInvoke } from 'electron-trio'; import { z } from 'zod';\n` +
               code.replace(
                 'GENERATED_DEFINITION',
                 `createIpcInvoke('run').inputValidator(z.number()).handler(({ data, event }) => ({ count: state.count += data, sender: event?.sender.id }))`,

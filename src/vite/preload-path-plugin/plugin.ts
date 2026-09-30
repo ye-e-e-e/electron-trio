@@ -9,7 +9,7 @@ import { renderOutputPaths } from '#/vite/output-paths'
 import type { PreloadBuilderState } from '#/vite/preload-plugin/plugin'
 import { PreloadBuilds } from './builds'
 
-const PRELOAD_PATH_MARKER = '__electron_start_preload_path_'
+const PRELOAD_PATH_MARKER = '__electron_trio_preload_path_'
 
 /** Discover preload imports in main, build them separately, and expose their paths. */
 export function preloadPathPlugin(state: PreloadBuilderState): Plugin {
@@ -41,7 +41,7 @@ export function preloadPathPlugin(state: PreloadBuilderState): Plugin {
     }
   })
   return {
-    name: 'electron-start:preload-path',
+    name: 'electron-trio:preload-path',
     enforce: 'pre',
     applyToEnvironment: (environment) => environment.name === MAIN_ENVIRONMENT,
     perEnvironmentStartEndDuringDev: true,

@@ -13,5 +13,5 @@ export type ElectronProcessMessage =
   | { type: 'electron:reload' }
   | { type: 'electron:quit' }
 
-export const VALIDATE_REQUEST = 'electron-start:validate'
-export const VALIDATE_RESPONSE = 'electron-start:validated'
+export const VALIDATE_REQUEST = 'electron-trio:validate'
+export const VALIDATE_RESPONSE = 'electron-trio:validated'

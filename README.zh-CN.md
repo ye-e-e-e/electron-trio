@@ -1,4 +1,4 @@
-# electron-start
+# electron-trio
 
 [English](README.md)
 
@@ -15,7 +15,7 @@
 ### 1. 安装项目依赖
 
 ```bash
-npm install electron-start
+npm install electron-trio
 ```
 
 ### 2. 配置 Vite 插件
@@ -23,11 +23,11 @@ npm install electron-start
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
-import { electronStart } from 'electron-start/vite'
+import { electronTrio } from 'electron-trio/vite'
 
 export default defineConfig({
   plugins: [
-    electronStart({
+    electronTrio({
       entry: 'electron/main.ts', // 主进程入口文件
     }),
   ],
@@ -38,7 +38,7 @@ export default defineConfig({
 
 ```ts
 // electron/preload.ts
-import { createPreload } from 'electron-start'
+import { createPreload } from 'electron-trio'
 
 export default createPreload(() => {
   // IPC 桥接代码会自动生成。
@@ -50,7 +50,7 @@ export default createPreload(() => {
 ```ts
 // electron/main.ts
 import { app, BrowserWindow } from 'electron'
-import { loadWindow } from 'electron-start'
+import { loadWindow } from 'electron-trio'
 import preload from './preload'
 
 app.whenReady().then(() => {
@@ -65,7 +65,7 @@ app.whenReady().then(() => {
 
 ```ts
 // electron/custom.ts
-import { createIpcInvoke } from 'electron-start'
+import { createIpcInvoke } from 'electron-trio'
 
 export const ping = createIpcInvoke('ping').handler(() => 'pong')
 ```
@@ -103,7 +103,7 @@ export default function App() {
 
 ```ts
 // electron/custom.ts
-import { createIpcInvoke } from 'electron-start'
+import { createIpcInvoke } from 'electron-trio'
 import { z } from 'zod'
 
 export const greet = createIpcInvoke('greet')
@@ -143,7 +143,7 @@ export default function App() {
 ```ts
 // electron/preload.ts
 import { contextBridge } from 'electron'
-import { createPreload } from 'electron-start'
+import { createPreload } from 'electron-trio'
 
 export default createPreload(() => {
   contextBridge.exposeInMainWorld('appInfo', { name: 'Example' })
@@ -153,7 +153,7 @@ export default createPreload(() => {
 ```ts
 // electron/main.ts
 import { app, BrowserWindow } from 'electron'
-import { loadWindow } from 'electron-start'
+import { loadWindow } from 'electron-trio'
 import preload from './preload'
 
 app.whenReady().then(async () => {
@@ -184,7 +184,7 @@ app.whenReady().then(async () => {
 ```ts
 // electron/main.ts
 import { app, BrowserWindow } from 'electron'
-import { loadWindow } from 'electron-start'
+import { loadWindow } from 'electron-trio'
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow()
@@ -196,7 +196,7 @@ app.whenReady().then(async () => {
 
 ## Vite 插件
 
-### `electronStart(options)`
+### `electronTrio(options)`
 
 通过 Vite 管理 Electron 开发启动、构建和 IPC 集成。renderer、main 和 preload 的构建产物默认分别输出到 `dist/client`、`dist/main` 和 `dist/preload`。各环境可通过 Vite 的 `environments` 自定义配置。
 
@@ -209,11 +209,11 @@ app.whenReady().then(async () => {
 ```ts
 // vite.config.ts（最小配置）
 import { defineConfig } from 'vite'
-import { electronStart } from 'electron-start/vite'
+import { electronTrio } from 'electron-trio/vite'
 
 export default defineConfig({
   plugins: [
-    electronStart({
+    electronTrio({
       entry: 'electron/main.ts',
     }),
   ],
@@ -223,11 +223,11 @@ export default defineConfig({
 ```ts
 // vite.config.ts（全部插件选项及 environment 自定义）
 import { defineConfig } from 'vite'
-import { electronStart } from 'electron-start/vite'
+import { electronTrio } from 'electron-trio/vite'
 
 export default defineConfig({
   plugins: [
-    electronStart({
+    electronTrio({
       entry: 'electron/main.ts',
       bridgeName: 'desktop',
       electron: { args: ['--enable-logging'] },
