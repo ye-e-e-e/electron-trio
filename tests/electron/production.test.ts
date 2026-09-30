@@ -1,24 +1,40 @@
-// Optional real Electron test: ELECTRON_BINARY=/path/to/electron pnpm test:electron
-import { expect, test } from 'vitest'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
-import { build } from 'vite'
-import { ipcInvoke } from '#/vite'
+import { createBuilder } from 'vite'
+// Optional real Electron test: ELECTRON_BINARY=/path/to/electron pnpm test:electron
+import { expect, test } from 'vitest'
+import { electronStart } from '#/vite'
 import { sourceAliases } from '../helpers'
 
 const binary = process.env.ELECTRON_BINARY
-if (!binary) throw new Error('Set ELECTRON_BINARY to an installed Electron executable')
+if (!binary)
+  throw new Error('Set ELECTRON_BINARY to an installed Electron executable')
 for (const mode of [
-    { name: 'esm-bundled', mainFormat: 'es', mainFile: 'main.mjs', externalRuntime: false },
-    { name: 'cjs-external', mainFormat: 'cjs', mainFile: 'main.cjs', externalRuntime: true },
-  ] as const) {
+  {
+    name: 'esm-bundled',
+    mainFormat: 'es',
+    mainFile: 'main.mjs',
+    externalRuntime: false,
+  },
+  {
+    name: 'cjs-external',
+    mainFormat: 'cjs',
+    mainFile: 'main.cjs',
+    externalRuntime: true,
+  },
+] as const) {
   test(`Electron IPC with ${mode.name}`, { timeout: 45000 }, async (t) => {
-    const root = await fs.mkdtemp(path.join(path.resolve(import.meta.dirname, '../..'), '.ipc-test-electron-'))
+    const root = await fs.mkdtemp(
+      path.join(
+        path.resolve(import.meta.dirname, '../..'),
+        '.ipc-test-electron-',
+      ),
+    )
     t.onTestFinished(() => fs.rm(root, { recursive: true, force: true }))
     const outDir = `out-${mode.name}`
     const files = {
-      'src/ipc/smoke.ipc.ts': `import { z } from 'zod'; import { createIpcInvoke } from 'electron-ipc-invoke'
+      'src/ipc/smoke.ipc.ts': `import { z } from 'zod'; import { createIpcInvoke } from 'electron-start'
         export const version = createIpcInvoke('version').handler(({ data }) => {
           if (data !== undefined) throw new Error('Unexpected data without an input validator')
           return process.versions.electron
@@ -32,8 +48,10 @@ for (const mode of [
           try { await fail() } catch { errorRejected = true }
           let validationRejected = false; try { await sum({ a: 2 } as any) } catch { validationRejected = true }; return { version: await version(), remote: await sum({ a: '2' }), validationRejected, errorRejected }
         }`,
-      'preload.ts': ``,
+      'preload.ts': `import { createPreload } from 'electron-start'; export default createPreload(() => {})`,
       'main.ts': `import { sum } from './src/ipc/smoke.ipc'; import { app, BrowserWindow } from 'electron'
+        ${mode.externalRuntime ? '' : "import { loadWindow } from 'electron-start'"}
+        import preload from './preload'
         import path from 'node:path'
         import { fileURLToPath } from 'node:url'
         const directory = ${mode.externalRuntime ? '__dirname' : 'path.dirname(fileURLToPath(import.meta.url))'}
@@ -42,10 +60,10 @@ for (const mode of [
         app.whenReady().then(async () => {
           try {
             window = new BrowserWindow({ show: false, webPreferences: {
-              preload: path.join(directory, 'preload.mjs'), sandbox: true,
+              preload, sandbox: true,
               contextIsolation: true, nodeIntegration: false,
             } })
-            await window.loadFile(path.join(directory, 'index.html'))
+            ${mode.externalRuntime ? "await window.loadFile(path.join(directory, '../client/index.html'))" : 'await loadWindow(window)'}
             const result = await window.webContents.executeJavaScript('Smoke.run()')
             result.direct = await sum({ a: '2' }); console.log('IPC_SMOKE_RESULT:' + JSON.stringify(result))
             window.destroy()
@@ -57,38 +75,74 @@ for (const mode of [
       await fs.mkdir(path.dirname(path.join(root, name)), { recursive: true })
       await fs.writeFile(path.join(root, name), code)
     }
-    const [rendererPlugin, mainPlugin, preloadPlugin] = ipcInvoke()
-    const plugins = { renderer: rendererPlugin, main: mainPlugin, preload: preloadPlugin }
-    for (const target of ['renderer', 'main', 'preload'] as const) {
-      const format = target === 'renderer' ? 'iife' : target === 'main' ? mode.mainFormat : 'cjs'
-      const fileName = target === 'main' ? mode.mainFile : target === 'preload' ? 'preload.mjs' : 'renderer.js'
-      await build({
-        root, configFile: false, logLevel: 'silent', plugins: [plugins[target]],
-        resolve: { alias: sourceAliases },
-        build: {
-          outDir, emptyOutDir: false, minify: false,
-          lib: { entry: path.join(root, `${target}.ts`), formats: [format], name: 'Smoke', fileName: () => fileName },
-          rolldownOptions: { external: ['electron', 'node:path', 'node:url', ...(mode.externalRuntime ? ['electron-ipc-invoke'] : [])] },
+    const builder = await createBuilder({
+      root,
+      configFile: false,
+      logLevel: 'silent',
+      plugins: [electronStart({ entry: 'main.ts' })],
+      resolve: { alias: sourceAliases },
+      build: {
+        outDir,
+        emptyOutDir: false,
+        minify: false,
+        lib: {
+          entry: path.join(root, 'renderer.ts'),
+          formats: ['iife'],
+          name: 'Smoke',
+          fileName: () => 'renderer.js',
         },
-      })
-    }
-    if (mode.externalRuntime) {
-      const mainCode = await fs.readFile(path.join(root, outDir, mode.mainFile), 'utf8')
-      expect(mainCode).toMatch(/require\(["']electron-ipc-invoke["']\)/)
-    }
-    await fs.writeFile(path.join(root, outDir, 'index.html'), `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'"><script src="./renderer.js"></script>`)
+      },
+      environments: {
+        electron_main: {
+          build: {
+            rolldownOptions: {
+              external: [
+                'electron',
+                'node:path',
+                'node:url',
+                ...(mode.externalRuntime ? ['electron-start'] : []),
+              ],
+              output: {
+                format: mode.mainFormat,
+                entryFileNames: mode.mainFile,
+              },
+            },
+          },
+        },
+      },
+    })
+    await builder.buildApp()
+    await fs.writeFile(
+      path.join(root, outDir, 'client/index.html'),
+      `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'"><script src="./renderer.js"></script>`,
+    )
     const output = await new Promise<string>((resolve, reject) => {
       const env = { ...process.env }
       delete env.ELECTRON_RUN_AS_NODE
-      const child = spawn(binary!, [path.join(root, outDir, mode.mainFile)], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+      const child = spawn(
+        binary!,
+        [path.join(root, outDir, 'main', mode.mainFile)],
+        { env, stdio: ['ignore', 'pipe', 'pipe'] },
+      )
       let log = ''
-      const timeout = setTimeout(() => { child.kill(); reject(new Error(`Electron smoke test timed out\n${log}`)) }, 20000)
-      child.stdout.on('data', (chunk) => { log += chunk })
-      child.stderr.on('data', (chunk) => { log += chunk })
-      child.on('error', (error) => { clearTimeout(timeout); reject(error) })
+      const timeout = setTimeout(() => {
+        child.kill()
+        reject(new Error(`Electron smoke test timed out\n${log}`))
+      }, 20000)
+      child.stdout.on('data', (chunk) => {
+        log += chunk
+      })
+      child.stderr.on('data', (chunk) => {
+        log += chunk
+      })
+      child.on('error', (error) => {
+        clearTimeout(timeout)
+        reject(error)
+      })
       child.on('close', (code) => {
         clearTimeout(timeout)
-        if (code !== 0) reject(new Error(`Electron exited with ${code}\n${log}`))
+        if (code !== 0)
+          reject(new Error(`Electron exited with ${code}\n${log}`))
         else resolve(log)
       })
     })
@@ -102,6 +156,8 @@ for (const mode of [
     expect(result.direct).toStrictEqual({ sum: 5, hasEvent: false })
     expect(result.validationRejected).toBe(true)
     expect(result.errorRejected).toBe(true)
-    console.log(`Electron ${result.version} (${mode.name}): sandboxed preload, renderer proxy and error propagation passed`)
+    console.log(
+      `Electron ${result.version} (${mode.name}): sandboxed preload, renderer proxy and error propagation passed`,
+    )
   })
 }

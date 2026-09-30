@@ -1,6 +1,7 @@
-import type { Plugin } from 'vite'
-import type { PluginContextOptions } from '#/context/types'
+import type { ElectronOptions } from './electron-plugin/types'
+import type { IpcContextOptions } from './ipc-plugin/types'
 
-export interface IpcInvokeOptions extends PluginContextOptions {}
-
-export type IpcInvokePlugins = [renderer: Plugin[], main: Plugin[], preload: Plugin[]]
+export interface ElectronStartViteOptions extends IpcContextOptions {
+  entry: string
+  electron?: ElectronOptions
+}

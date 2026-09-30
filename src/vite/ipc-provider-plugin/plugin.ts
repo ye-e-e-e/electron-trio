@@ -1,45 +1,82 @@
-import { builtinModules } from 'node:module'
-import type { Plugin } from 'vite'
-import type { PluginContext } from '#/context/context'
-import { IpcEnvironment } from './environment'
+import MagicString from 'magic-string'
+import type { DevEnvironment, Plugin } from 'vite'
+import { VALIDATE_REQUEST, VALIDATE_RESPONSE } from '#/runtime/protocol'
+import {
+  IPC_IMPLEMENTATION_ID_REGEX,
+  MAIN_ENVIRONMENT,
+  SOURCE_MODULE_FILTER,
+} from '#/vite/constants'
+import type { IpcContext } from '#/vite/ipc-plugin/context'
+import { ipcDefinitionId } from '#/vite/ipc-plugin/module-id'
+import { IpcProvider } from './provider'
 
-const IPC_ENVIRONMENT_NAME = 'ipc_invoke'
-
-/** Provide IPC implementation modules through Vite's ipc_invoke environment. */
-export function ipcProviderPlugin(context: PluginContext): Plugin {
+/** Authorize IPC targets and give implementations an HMR boundary in the main graph. */
+export function ipcProviderPlugin(context: IpcContext): Plugin {
+  const providers = new WeakMap<DevEnvironment, IpcProvider>()
   return {
-    name: 'electron-ipc-invoke:provider',
+    name: 'electron-start:provider',
     apply: 'serve',
-    enforce: 'pre',
-    config() {
-      return {
-        environments: {
-          [IPC_ENVIRONMENT_NAME]: {
-            consumer: 'server',
-            keepProcessEnv: true,
-            resolve: { builtins: [...builtinModules, /^node:/, 'electron'], external: ['electron'] },
-            dev: {
-              moduleRunnerTransform: true,
-              async createEnvironment(name, config) {
-                const environment = new IpcEnvironment(name, config, context.registry, context.sources)
-                context.devConnection = environment.connection
-                await environment.connection
-                return environment
-              },
-            },
-          },
-        },
-      }
+    perEnvironmentStartEndDuringDev: true,
+    applyToEnvironment: (environment) => environment.name === MAIN_ENVIRONMENT,
+    configureServer(server) {
+      const environment = server.environments[MAIN_ENVIRONMENT]
+      const provider = new IpcProvider(environment, context.registry)
+      providers.set(environment, provider)
+      provider.init(server.watcher)
+      environment.hot.on(VALIDATE_REQUEST, async ({ id, target }, client) => {
+        try {
+          await provider.validate(target)
+          client.send(VALIDATE_RESPONSE, { id })
+        } catch (error) {
+          client.send(VALIDATE_RESPONSE, {
+            id,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
+      })
     },
-    applyToEnvironment(environment) { return environment.name === IPC_ENVIRONMENT_NAME },
     async resolveId(source, importer, options) {
       if (!importer || source.startsWith('\0')) return
-      return (this.environment as IpcEnvironment).resolveImport(source, importer,
-        () => this.resolve(source, importer, { ...options, skipSelf: true }))
+      return providers
+        .get(this.environment as DevEnvironment)
+        ?.resolveImport(source, importer, () =>
+          this.resolve(source, importer, { ...options, skipSelf: true }),
+        )
     },
-    transform(_code, id) {
-      (this.environment as IpcEnvironment).clearUnresolvedImports(id)
+    watchChange(id) {
+      providers
+        .get(this.environment as DevEnvironment)
+        ?.clearUnresolvedImports(id)
     },
-    hotUpdate(context) { return (this.environment as IpcEnvironment).hotUpdate(context) },
+    transform: {
+      filter: {
+        id: {
+          include: IPC_IMPLEMENTATION_ID_REGEX,
+          exclude: SOURCE_MODULE_FILTER.exclude,
+        },
+      },
+      async handler(code, id) {
+        const moduleKey = ipcDefinitionId(id)
+        const analysis = await context.registry.analyze(code, moduleKey)
+        context.registry.update(moduleKey, analysis)
+        if (analysis.kind !== 'definition') return
+        const output = new MagicString(code)
+        output.append('\nif (import.meta.hot) import.meta.hot.accept();\n')
+        return {
+          code: output.toString(),
+          map: output.generateMap({
+            source: id,
+            includeContent: true,
+            hires: true,
+          }),
+        }
+      },
+    },
+    hotUpdate(update) {
+      return providers.get(this.environment)?.hotUpdate(update)
+    },
+    async closeBundle() {
+      await providers.get(this.environment as DevEnvironment)?.close()
+    },
   }
 }

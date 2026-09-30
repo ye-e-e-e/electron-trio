@@ -1,2 +1,2 @@
-export { ipcInvoke } from './vite/plugin'
-export type { IpcInvokeOptions, IpcInvokePlugins } from './vite/types'
+export { electronStart } from './vite/plugin'
+export type { ElectronStartViteOptions } from './vite/types'

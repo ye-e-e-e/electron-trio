@@ -1,159 +1,254 @@
-# electron-ipc-invoke
+# electron-start
 
 [简体中文](README.zh-CN.md)
 
-Define a function once and call it across processes with type safety. Built on Electron's native `invoke`/`handle` APIs, the Vite plugins generate handler registration and preload bridges, with parameter and return types inferred from the definition. No handwritten IPC boilerplate or type declarations are required. Inspired by TanStack Start's `createServerFn`.
+Simplify Electron application development and builds with Vite.
 
-During development, changes to functions defined with `createIpcInvoke` take effect on the next call, without restarting the Electron main process.
-
-## Installation
-
-```bash
-npm install electron-ipc-invoke
-```
-
-## Example
-
-The [`examples/`](./examples) directory contains two minimal projects using Vite, Electron, Zod schemas, and React:
-
-- [`vite-plugin-electron`](./examples/vite-plugin-electron): uses `vite-plugin-electron/simple` with separate main/preload builds.
-- [`vite-plugin-electron-multi-env`](./examples/vite-plugin-electron-multi-env): uses `electronSimple` from `vite-plugin-electron/multi-env` with Vite environments.
+- **Unified configuration**: One Vite configuration for main, preload, and renderer, with per-environment options and automatic Electron process management during development.
+- **Type-safe IPC**: Renderer code can directly import and call an IPC function that runs in main, with inferred types, optional schema validation, generated registration and preload bridges, and IPC HMR.
+- **Main process HMR**: Vite HMR support, with Electron restarting when an update has no accepting boundary.
+- **Automatic preload builds**: Import preload entries as built script paths; changes rebuild scripts and reload windows.
+- **Renderer loading**: `loadWindow` automatically loads the development server or built renderer page.
 
 ## Quick Start
 
-### 1. Add the Vite plugins
+### 1. Install project dependencies
 
-Add the corresponding plugins to the renderer, main, and preload builds:
+```bash
+npm install electron-start
+```
+
+### 2. Configure the Vite plugin
 
 ```ts
 // vite.config.ts
-import { defineConfig } from "vite"
-import electron from "vite-plugin-electron/simple"
-import { ipcInvoke } from "electron-ipc-invoke/vite"
+import { defineConfig } from 'vite'
+import { electronStart } from 'electron-start/vite'
 
-export default defineConfig(() => {
-    const [renderer, main, preload] = ipcInvoke()
-
-    return {
-        plugins: [
-            renderer,
-            electron({
-                main: {
-                    entry: "electron/main.ts",
-                    vite: { plugins: [main] },
-                },
-                preload: {
-                    input: "electron/preload.ts",
-                    vite: { plugins: [preload] },
-                },
-            }),
-        ],
-    }
+export default defineConfig({
+  plugins: [
+    electronStart({
+      entry: 'electron/main.ts', // Main process entry file
+    }),
+  ],
 })
 ```
 
-### 2. Define a function with `createIpcInvoke`
+### 3. Add a preload script
+
+```ts
+// electron/preload.ts
+import { createPreload } from 'electron-start'
+
+export default createPreload(() => {
+  // The IPC bridge is generated automatically.
+})
+```
+
+### 4. Create the main process entry
+
+```ts
+// electron/main.ts
+import { app, BrowserWindow } from 'electron'
+import { loadWindow } from 'electron-start'
+import preload from './preload'
+
+app.whenReady().then(() => {
+  const win = new BrowserWindow({
+    webPreferences: { preload }, // Import the preload script module directly
+  })
+  void loadWindow(win) // Automatically load the development server or built page
+})
+```
 
 ```ts
 // electron/custom.ts
-import { z } from "zod"
-import { createIpcInvoke } from "electron-ipc-invoke"
+import { createIpcInvoke } from 'electron-start'
 
-export const greet = createIpcInvoke("greet")
-    .inputValidator(z.object({ name: z.string() }))
-    .handler(({ event, data }) => {
-        // event: IpcMainInvokeEvent | undefined
-        // data: { name: string }
-        return `Hello, ${data.name}!`
-    })
+export const ping = createIpcInvoke('ping').handler(() => 'pong')
 ```
 
-### 3. Call the function from the renderer
+### 5. Directly call an IPC function defined in main from the renderer
 
 ```tsx
 // src/App.tsx
-import { greet } from "../electron/custom"
+import { ping } from '../electron/custom'
 
 export default function App() {
-    async function sayHello() {
-        // The parameter type is inferred from the schema; the return type is inferred from the handler.
-        // greet: ({ name: string }) => Promise<string>
-        const message = await greet({ name: "Electron" })
-        console.log(message) // "Hello, Electron!"
-    }
+  async function onPing() {
+    console.log(await ping()) // "pong"
+  }
 
-    return <button onClick={sayHello}>Say hello</button>
+  return <button onClick={onPing}>Ping</button>
 }
 ```
 
-## How It Works
-
-The plugins transform functions defined with `createIpcInvoke` for each environment and inject initialization code into main and preload entries through virtual modules. Dev proxies identify functions by module path and export name; the runtime loads updated modules on demand. Build generates handler registration and bridge code from the channel manifest after tree-shaking.
-
-### Dev
-
-`electron-ipc-invoke/dev` exports only `initRuntime` and `getRuntime`. The plugins initialize the shared instance in main, use it for local calls and renderer IPC dispatch, and close it with `(await getRuntime()).close()` on quit. Closing is idempotent; the closed instance remains cached and rejects further invocations. Application code does not need to manage this lifecycle.
-
-```mermaid
-flowchart TD
-    Definitions["createIpcInvoke definitions"] -->|Replace| Renderer["Renderer calling proxies"]
-    Definitions -->|Replace| Local
-    Definitions -->|Register| Vite["Vite ipc_invoke environment"]
-    subgraph Main["Electron main"]
-        Local["Main local calling proxies"] --> Runner["ModuleRunner"]
-        Register["Main shared IPC registration"] --> Runner
-    end
-    Init["Initialization virtual modules"] -->|Inject into preload entry| Preload["Preload invoke bridge"]
-    Init -->|Inject into main entry| Main
-    Renderer --> Preload --> Register
-    Runner <-->|Module requests and cache invalidation| Vite
-```
-
-### Build
-
-```mermaid
-flowchart TD
-    Definitions["createIpcInvoke definitions"] --> Renderer["Transform renderer calling proxies"]
-    Renderer --> Treeshaking["Select definitions retained after tree-shaking"]
-    Treeshaking --> Manifest["Generate channel manifest"]
-    Manifest --> Virtual["Generate initialization virtual modules"]
-    Virtual -->|Inject into main entry| Main["Statically import and register handlers"]
-    Virtual -->|Inject into preload entry| Preload["Expose channel bridges"]
-```
+> [`examples/basic`](./examples/basic) provides a minimal project using Vite, Electron, Zod schemas, and React.
 
 ## API
 
 ### `createIpcInvoke(channel).inputValidator(schema).handler(fn)`
 
-#### Parameters
+Define an async function once and import it from renderer or main, with inferred parameter and return types and optional schema validation before the handler runs. Cross-process calls use Electron's native `invoke`/`handle` APIs. The plugins generate IPC registration and preload bridges and support HMR for IPC implementations during development.
 
-| Property | Type | Description |
-| -------- | ---- | ----------- |
-| `channel` | `string` | IPC channel. Must be a unique, non-blank string literal. |
-| `schema` | [`StandardSchemaV1`](https://github.com/standard-schema/standard-schema) | A schema implementing `StandardSchemaV1`, such as Zod. Omit `.inputValidator(schema)` to use `createIpcInvoke(channel).handler(fn)` directly. |
-| `fn` | `(context: { event: `[`IpcMainInvokeEvent`](https://www.electronjs.org/docs/latest/api/structures/ipc-main-invoke-event)` \| undefined, data: Data }) => Result` | `event`: the IPC event for a renderer call, or `undefined` for a main call.<br>`Data`: the schema output type, or `undefined` when `.inputValidator(schema)` is omitted. |
+| Parameter | Type                                                                     | Description                                                                                                                                                                  |
+| --------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `channel` | `string`                                                                 | Unique, non-blank IPC channel string literal.                                                                                                                                |
+| `schema`  | [`StandardSchemaV1`](https://github.com/standard-schema/standard-schema) | Input schema, such as Zod. Omit `.inputValidator(schema)` when no input is needed.                                                                                           |
+| `fn`      | `(context: IpcInvokeContext<Data>) => Result`                            | Handler. `context.event` is the renderer IPC event, or `undefined` for main calls. `context.data` is the validated schema output, or `undefined` without an input validator. |
 
-#### Returns
+**Returns:** `(input: Input) => Promise<Awaited<Result>>`. A function callable from renderer or main. `Input` is the schema input type; no argument is required without an input validator.
 
-| Type | Description |
-| ---- | ----------- |
-| `(input: Input) => Promise<Awaited<Result>>` | Callable from renderer/main.<br>`Input`: the schema input type; no argument is required when `.inputValidator(schema)` is omitted.<br>For renderer calls, arguments and return values must follow the transport rules of [Electron IPC](https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args) and [`contextBridge`](https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support). |
+```ts
+// electron/custom.ts
+import { createIpcInvoke } from 'electron-start'
+import { z } from 'zod'
 
-### `ipcInvoke(options?)`
+export const greet = createIpcInvoke('greet')
+  .inputValidator(z.object({ name: z.string() }))
+  .handler(({ data }) => `Hello, ${data.name}!`)
 
-#### Parameters
+export const ping = createIpcInvoke('ping').handler(() => 'pong')
+```
 
-| Property | Type | Default | Description |
-| -------- | ---- | ------- | ----------- |
-| `options.bridgeName` | `string` | `'__ipc'` | The global bridge property name in the renderer. Must contain a non-whitespace character. |
+```tsx
+// src/App.tsx
+import { greet } from '../electron/custom'
 
-#### Returns
+export default function App() {
+  async function sayHello() {
+    // greet: (input: { name: string }) => Promise<string>
+    const message = await greet({ name: 'Electron' })
+    console.log(message) // "Hello, Electron!"
+  }
 
-| Type | Description |
-| ---- | ----------- |
-| `[renderer: Plugin[], main: Plugin[], preload: Plugin[]]` | A tuple of Vite plugin arrays. |
+  return <button onClick={sayHello}>Say hello</button>
+}
+```
 
-## ⚠️ Notes
+> IPC definition modules may export only IPC functions and types.
+>
+> Preload scripts cannot import IPC definition modules; the bridge is generated automatically.
+>
+> Input validation failures reject the call's Promise without running the handler. Errors thrown by the handler also reject the call. Main callers can access validation details through `IpcValidationError.issues`; renderer calls across processes receive only the error message.
+>
+> Renderer arguments and return values must follow the transport rules of [Electron IPC](https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args) and [`contextBridge`](https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support).
 
-- **When a module uses `createIpcInvoke` to define and export functions, it may export only those functions and types.**
-- During development, IPC handlers are not guaranteed to share module-level variables or objects with ordinary modules imported directly by main.
+### `createPreload(setup)`
+
+Declare a preload entry whose default import in main is the preload's absolute path.
+
+```ts
+// electron/preload.ts
+import { contextBridge } from 'electron'
+import { createPreload } from 'electron-start'
+
+export default createPreload(() => {
+  contextBridge.exposeInMainWorld('appInfo', { name: 'Example' })
+})
+```
+
+```ts
+// electron/main.ts
+import { app, BrowserWindow } from 'electron'
+import { loadWindow } from 'electron-start'
+import preload from './preload'
+
+app.whenReady().then(async () => {
+  const win = new BrowserWindow({
+    webPreferences: {
+      preload,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  await loadWindow(win)
+})
+```
+
+> Default-export a direct `createPreload` call. Additional exports must be types.
+
+### `loadWindow(window)`
+
+Load the renderer into a `BrowserWindow`: use `VITE_DEV_SERVER_URL` during development, or the built renderer's `index.html` in production.
+
+| Parameter | Type            | Description                                  |
+| --------- | --------------- | -------------------------------------------- |
+| `window`  | `BrowserWindow` | Electron window whose page should be loaded. |
+
+**Returns:** `Promise<void>`. Resolves when the page finishes loading; rejects if loading fails.
+
+```ts
+// electron/main.ts
+import { app, BrowserWindow } from 'electron'
+import { loadWindow } from 'electron-start'
+
+app.whenReady().then(async () => {
+  const win = new BrowserWindow()
+  await loadWindow(win)
+})
+```
+
+> This helper loads a single renderer `index.html`; multi-page applications are not yet supported.
+
+## Vite Plugin
+
+### `electronStart(options)`
+
+Manage Electron development startup, builds, and IPC integration through Vite. The default output directories are `dist/client` for renderer, `dist/main` for main, and `dist/preload` for preload. Customize each environment through Vite's `environments` configuration.
+
+| Name                    | Type       | Description                                                             |
+| ----------------------- | ---------- | ----------------------------------------------------------------------- |
+| `options.entry`         | `string`   | Required main source entry, relative to Vite root or absolute.          |
+| `options.bridgeName`    | `string`   | Renderer global bridge property. Defaults to `'__ipc'`.                 |
+| `options.electron.args` | `string[]` | Additional Electron startup arguments in development. Defaults to `[]`. |
+
+```ts
+// vite.config.ts (minimal configuration)
+import { defineConfig } from 'vite'
+import { electronStart } from 'electron-start/vite'
+
+export default defineConfig({
+  plugins: [
+    electronStart({
+      entry: 'electron/main.ts',
+    }),
+  ],
+})
+```
+
+```ts
+// vite.config.ts (all plugin options and environment customization)
+import { defineConfig } from 'vite'
+import { electronStart } from 'electron-start/vite'
+
+export default defineConfig({
+  plugins: [
+    electronStart({
+      entry: 'electron/main.ts',
+      bridgeName: 'desktop',
+      electron: { args: ['--enable-logging'] },
+    }),
+  ],
+  environments: {
+    client: {
+      // Renderer Vite options
+    },
+    electron_main: {
+      // Main Vite options
+    },
+    electron_preload: {
+      // Preload Vite options
+    },
+  },
+})
+```
+
+> Production `vite build --watch` is not supported.
+
+## Version Requirements
+
+- Node.js: `^20.19.0 || >=22.12.0`
+- Vite: `^8.2.0`
+- Electron: `>=44.0.0`
